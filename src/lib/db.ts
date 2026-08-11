@@ -44,7 +44,7 @@ function getStore(): GlobalDataStore {
   const initialUsers: UserRow[] = [
     {
       id: adminId1,
-      email: "sean@imaginejj.test",
+      email: "imagineawebsite@gmail.com",
       passwordHash: hashPw("mat-admin-1"),
       name: "Coach Sean",
       role: "ADMIN",
