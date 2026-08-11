@@ -17,8 +17,20 @@ export default async function ContactPage() {
           <div>
             <p className="eyebrow text-ink/50">Find us</p>
             <p className="mt-1 text-lg">{s.address}</p>
-            <p className="text-ink/70">{s.phone}</p>
-            <p className="text-ink/70">{s.email}</p>
+            {s.phone && (
+              <p className="text-ink/70">
+                <a href={`tel:${s.phone.replace(/[^0-9+]/g, "")}`} className="hover:text-flow hover:underline transition-colors">
+                  {s.phone}
+                </a>
+              </p>
+            )}
+            {s.email && (
+              <p className="text-ink/70">
+                <a href={`mailto:${s.email}`} className="hover:text-flow hover:underline transition-colors">
+                  {s.email}
+                </a>
+              </p>
+            )}
           </div>
           <div>
             <p className="eyebrow text-ink/50">Doors open</p>

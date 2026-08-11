@@ -13,7 +13,22 @@ export default async function InquiriesPage() {
         {inquiries.map((q) => (
           <li key={q.id} className={`border bg-white p-4 ${q.handled ? "border-line opacity-60" : "border-flow"}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="font-medium">{q.name} <span className="text-ink/50 text-sm">— {q.email}{q.phone ? ` · ${q.phone}` : ""}</span></p>
+              <p className="font-medium">
+                {q.name}{" "}
+                <span className="text-ink/50 text-sm">
+                  — <a href={`mailto:${q.email}`} className="hover:underline">{q.email}</a>
+                  {q.phone ? (
+                    <>
+                      {" · "}
+                      <a href={`tel:${q.phone.replace(/[^0-9+]/g, "")}`} className="hover:underline">
+                        {q.phone}
+                      </a>
+                    </>
+                  ) : (
+                    ""
+                  )}
+                </span>
+              </p>
               <div className="flex items-center gap-3">
                 <span className="font-mono text-[11px] uppercase tracking-widest text-ink/40">{new Date(q.createdAt).toLocaleDateString()}</span>
                 {!q.handled && (

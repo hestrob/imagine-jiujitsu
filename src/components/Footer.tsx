@@ -10,8 +10,20 @@ export async function Footer() {
         <div>
           <p className="font-display uppercase text-2xl">Imagine Jiu Jitsu</p>
           <p className="mt-2 text-mat/70 text-sm">{s.address}</p>
-          <p className="text-mat/70 text-sm">{s.phone}</p>
-          <p className="text-mat/70 text-sm">{s.email}</p>
+          {s.phone && (
+            <p className="text-mat/70 text-sm">
+              <a href={`tel:${s.phone.replace(/[^0-9+]/g, "")}`} className="hover:text-flow hover:underline transition-colors">
+                {s.phone}
+              </a>
+            </p>
+          )}
+          {s.email && (
+            <p className="text-mat/70 text-sm">
+              <a href={`mailto:${s.email}`} className="hover:text-flow hover:underline transition-colors">
+                {s.email}
+              </a>
+            </p>
+          )}
         </div>
         <div className="font-mono text-xs uppercase tracking-widest space-y-2">
           <p className="text-mat/50">Mat</p>

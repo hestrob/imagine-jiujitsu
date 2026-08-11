@@ -18,7 +18,12 @@ export default async function RosterPage() {
         {students.map((s) => (
           <details key={s.id} className="border border-line bg-white">
             <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-3 px-4 py-3">
-              <span className="font-medium">{s.name} <span className="text-ink/50 text-sm">— {s.email}</span></span>
+              <span className="font-medium">
+                {s.name}{" "}
+                <span className="text-ink/50 text-sm">
+                  — <a href={`mailto:${s.email}`} className="hover:underline">{s.email}</a>
+                </span>
+              </span>
               <span className="flex items-center gap-4">
                 <BeltBadge belt={s.belt} stripes={s.stripes} />
                 <span className="font-mono text-xs uppercase tracking-widest text-ink/50">
