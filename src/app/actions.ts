@@ -44,14 +44,49 @@ export async function signOut() {
 
 // ---------- Public ----------
 
-export async function submitInquiry(_prev: { ok?: boolean; error?: string } | undefined, formData: FormData) {
+export async function submitInquiry(_prev: { ok?: boolean; mailtoUrl?: string; error?: string } | undefined, formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
   const message = String(formData.get("message") || "").trim();
   if (!name || !email) return { error: "Name and email are required." };
+
   Inquiries.create({ name, email, phone, message });
-  return { ok: true };
+
+  const targetEmail = Settings.all().email || "imagineawebsite@gmail.com";
+
+  // Try sending email via Resend API if RESEND_API_KEY is configured
+  if (process.env.RESEND_API_KEY) {
+    try {
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "Imagine Jiu Jitsu <onboarding@resend.dev>",
+          to: [targetEmail],
+          subject: `🥋 New Free Class Request: ${name}`,
+          html: `
+            <h2>New Free Class Request</h2>
+            <p><strong>Name:</strong> ${name}</p>
+            <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+            <p><strong>Phone:</strong> ${phone ? `<a href="tel:${phone}">${phone}</a>` : "Not provided"}</p>
+            <p><strong>Message:</strong> ${message || "No message"}</p>
+          `,
+        }),
+      });
+    } catch (err) {
+      console.error("Resend notification error:", err);
+    }
+  }
+
+  const subject = encodeURIComponent(`Free Class Booking Request - ${name}`);
+  const body = encodeURIComponent(`Hi Coach Sean,\n\nI would like to book a free class at Imagine Jiu Jitsu.\n\nName: ${name}\nEmail: ${email}\nPhone: ${phone || "N/A"}\nMessage: ${message || "N/A"}\n\nThanks!`);
+  const mailtoUrl = `mailto:${targetEmail}?subject=${subject}&body=${body}`;
+
+  return { ok: true, mailtoUrl };
 }
 
 // ---------- Admin: settings ----------

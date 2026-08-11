@@ -12,9 +12,21 @@ export function InquiryForm() {
   const [state, action] = useFormState(submitInquiry, undefined);
   if (state?.ok) {
     return (
-      <div className="border border-flow bg-white p-6">
-        <p className="font-display uppercase text-2xl">You&apos;re on the list.</p>
-        <p className="mt-2 text-ink/70">We&apos;ll reach out to set up your first class. See you on the mat.</p>
+      <div className="border border-flow bg-white p-6 space-y-4">
+        <p className="font-display uppercase text-2xl">You&apos;re on the list!</p>
+        <p className="text-ink/70">
+          Your request for a free class has been submitted. We will be in touch shortly!
+        </p>
+        {state.mailtoUrl && (
+          <div className="pt-2">
+            <a
+              href={state.mailtoUrl}
+              className="btn inline-block !py-2.5 !px-5 text-sm"
+            >
+              Click here to send email to imagineawebsite@gmail.com
+            </a>
+          </div>
+        )}
       </div>
     );
   }
