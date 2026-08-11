@@ -47,8 +47,8 @@ const now = () => new Date().toISOString();
 const settings = {
   videoUrl: "https://www.youtube.com/embed/2fbLKPvmDws",
   address: "2548 Allen Cir, Woodland, CA 95776",
-  phone: "(530) 555-0000",
-  email: "hello@imaginejiujitsu.com",
+  phone: "(530) 520-3266",
+  email: "imagineawebsite@gmail.com",
   facebook: "https://www.facebook.com/people/Imagine-Jiu-Jitsu/61566902831513/",
   instagram: "",
   yelp: "https://www.yelp.com/biz/imagine-jiu-jitsu-woodland",
