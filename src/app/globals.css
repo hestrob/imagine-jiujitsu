@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #131624;
+  --mat: #F1F3EF;
+}
+
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { animation: none !important; transition: none !important; }
+}
+
+body {
+  @apply bg-mat text-ink font-body antialiased;
+}
+
+/* Signature: the belt line — white → blue → purple → brown → black */
+.belt-line {
+  height: 6px;
+  background: linear-gradient(
+    90deg,
+    #FAFAF7 0%, #FAFAF7 19%,
+    #2E5EAA 20%, #2E5EAA 39%,
+    #6B4FA0 40%, #6B4FA0 59%,
+    #7A4A2B 60%, #7A4A2B 79%,
+    #17130F 80%, #17130F 100%
+  );
+}
+
+/* Woven gi texture for dark panels */
+.gi-weave {
+  background-color: var(--ink);
+  background-image:
+    radial-gradient(rgba(241, 243, 239, 0.05) 1px, transparent 1px),
+    radial-gradient(rgba(241, 243, 239, 0.04) 1px, transparent 1px);
+  background-size: 14px 14px;
+  background-position: 0 0, 7px 7px;
+}
+
+.display-tight {
+  @apply font-display uppercase leading-[0.92] tracking-wide;
+}
+
+.eyebrow {
+  @apply font-mono text-xs uppercase tracking-[0.25em];
+}
+
+.rise { animation: rise 0.7s ease both; }
+.rise-2 { animation: rise 0.7s 0.12s ease both; }
+.rise-3 { animation: rise 0.7s 0.24s ease both; }
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 3px solid #2E5EAA;
+  outline-offset: 2px;
+}
+
+.btn {
+  @apply inline-block bg-flow text-mat font-mono uppercase tracking-widest text-sm px-6 py-3 hover:bg-ink transition-colors;
+}
+.btn-ghost {
+  @apply inline-block border border-ink text-ink font-mono uppercase tracking-widest text-sm px-6 py-3 hover:bg-ink hover:text-mat transition-colors;
+}
+.field {
+  @apply w-full border border-line bg-white px-3 py-2 text-sm;
+}
+.label {
+  @apply block font-mono text-xs uppercase tracking-widest mb-1 text-ink/70;
+}
