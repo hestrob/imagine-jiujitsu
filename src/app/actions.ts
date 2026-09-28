@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
-  AttendanceRepo, Competitions, Gallery, Inquiries, Settings, Users,
+  AttendanceRepo, Broadcasts, Competitions, Gallery, Inquiries, Settings, Users,
 } from "@/lib/db";
 import {
   createSession, destroySession, hashPassword, requireAdmin, verifyPassword,
@@ -177,4 +177,148 @@ export async function markInquiryHandled(formData: FormData) {
   const id = String(formData.get("id") || "");
   if (id) Inquiries.markHandled(id);
   revalidatePath("/admin/inquiries");
+}
+
+// ---------- Admin: member groups & management ----------
+
+export async function changeStudentGroup(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id") || "");
+  const group = String(formData.get("group") || "Adults");
+  if (id) {
+    Users.updateGroup(id, group);
+    revalidatePath("/admin/roster");
+    revalidatePath("/admin/broadcast");
+  }
+}
+
+export async function updateStudentDetails(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id") || "");
+  if (!id) return;
+  const name = String(formData.get("name") || "").trim();
+  const email = String(formData.get("email") || "").toLowerCase().trim();
+  const phone = String(formData.get("phone") || "").trim();
+  const group = String(formData.get("group") || "Adults");
+  const belt = String(formData.get("belt") || "WHITE");
+  const stripes = Math.max(0, Math.min(4, Number(formData.get("stripes") || 0)));
+  const subscriptionStatus = String(formData.get("subscriptionStatus") || "TRIAL");
+
+  Users.updateDetails(id, { name, email, phone, group, belt, stripes, subscriptionStatus });
+  revalidatePath("/admin/roster");
+  revalidatePath("/admin/broadcast");
+}
+
+export async function addStudentMember(formData: FormData) {
+  await requireAdmin();
+  const name = String(formData.get("name") || "").trim();
+  const email = String(formData.get("email") || "").toLowerCase().trim();
+  const phone = String(formData.get("phone") || "").trim();
+  const group = String(formData.get("group") || "Adults");
+  const belt = String(formData.get("belt") || "WHITE");
+  const stripes = Math.max(0, Math.min(4, Number(formData.get("stripes") || 0)));
+  const subscriptionStatus = String(formData.get("subscriptionStatus") || "ACTIVE");
+
+  if (!name || !email) return { error: "Name and email are required." };
+
+  Users.create({
+    name,
+    email,
+    phone,
+    group,
+    passwordHash: hashPassword("osss"),
+  });
+
+  const student = Users.byEmail(email);
+  if (student) {
+    Users.updateRank(student.id, belt, stripes, subscriptionStatus);
+  }
+
+  revalidatePath("/admin/roster");
+  revalidatePath("/admin/broadcast");
+}
+
+// ---------- Admin: broadcasts & alerts ----------
+
+export async function sendBroadcast(_prev: { ok?: boolean; error?: string; count?: number } | undefined, formData: FormData) {
+  await requireAdmin();
+  const targetGroup = String(formData.get("targetGroup") || "ALL");
+  const channel = String(formData.get("channel") || "ALL");
+  const title = String(formData.get("title") || "").trim();
+  const message = String(formData.get("message") || "").trim();
+
+  if (!title || !message) {
+    return { error: "Title and message content are required." };
+  }
+
+  const recipients = Users.byGroup(targetGroup);
+  const recipientCount = recipients.length;
+
+  if (recipientCount === 0) {
+    return { error: `No active members found in group "${targetGroup}".` };
+  }
+
+  // 1. Send via Resend (Email) if configured
+  if ((channel === "EMAIL" || channel === "ALL") && process.env.RESEND_API_KEY) {
+    const emails = recipients.map((r) => r.email).filter(Boolean);
+    if (emails.length > 0) {
+      try {
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: "Imagine Jiu Jitsu <alerts@imaginejiujitsu.com>",
+            to: emails,
+            subject: `[Imagine JJ] ${title}`,
+            text: message,
+          }),
+        });
+      } catch (err) {
+        console.error("Resend broadcast error:", err);
+      }
+    }
+  }
+
+  // 2. Send via Twilio (SMS) if configured
+  if ((channel === "SMS" || channel === "ALL") && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+    const phones = recipients.map((r) => r.phone).filter(Boolean);
+    const sid = process.env.TWILIO_ACCOUNT_SID;
+    const auth = Buffer.from(`${sid}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64");
+    for (const phone of phones) {
+      try {
+        const cleanPhone = phone.replace(/[^0-9+]/g, "");
+        if (!cleanPhone) continue;
+        const bodyParams = new URLSearchParams({
+          To: cleanPhone.startsWith("+") ? cleanPhone : `+1${cleanPhone}`,
+          From: process.env.TWILIO_FROM_PHONE || "",
+          Body: `[Imagine Jiu Jitsu] ${title}: ${message}`,
+        });
+        await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${auth}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: bodyParams.toString(),
+        });
+      } catch (err) {
+        console.error("Twilio SMS send error:", err);
+      }
+    }
+  }
+
+  // 3. Log broadcast history
+  Broadcasts.create({
+    targetGroup,
+    channel,
+    title,
+    message,
+    recipientCount,
+  });
+
+  revalidatePath("/admin/broadcast");
+  return { ok: true, count: recipientCount };
 }

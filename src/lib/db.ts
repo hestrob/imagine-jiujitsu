@@ -1,14 +1,27 @@
 import { randomUUID, scryptSync, randomBytes } from "node:crypto";
 
 export type UserRow = {
-  id: string; email: string; passwordHash: string; name: string;
-  role: string; belt: string; stripes: number;
-  promotedAt: string; joinedAt: string; subscriptionStatus: string;
+  id: string;
+  email: string;
+  phone: string;
+  passwordHash: string;
+  name: string;
+  role: string;
+  group: string; // "Adults" | "Kids" | "Competition Team"
+  belt: string;
+  stripes: number;
+  promotedAt: string;
+  joinedAt: string;
+  subscriptionStatus: string;
 };
+
 export type AttendanceRow = { id: string; userId: string; date: string; classLabel: string };
 export type CompetitionRow = { id: string; userId: string; date: string; name: string; division: string; result: string };
 export type GalleryRow = { id: string; src: string; caption: string; sortOrder: number; createdAt: string };
 export type InquiryRow = { id: string; name: string; email: string; phone: string; message: string; handled: number; createdAt: string };
+
+import { GROUPS, type MemberGroup, type BroadcastRow } from "./constants";
+export { GROUPS, type MemberGroup, type BroadcastRow };
 
 export const uid = () => randomUUID();
 export const nowIso = () => new Date().toISOString();
@@ -27,6 +40,7 @@ type GlobalDataStore = {
   competitions: CompetitionRow[];
   gallery: GalleryRow[];
   inquiries: InquiryRow[];
+  broadcasts: BroadcastRow[];
   settings: Record<string, string>;
 };
 
@@ -40,14 +54,18 @@ function getStore(): GlobalDataStore {
   const jordanId = uid();
   const samId = uid();
   const rileyId = uid();
+  const leoId = uid();
+  const elenaId = uid();
 
   const initialUsers: UserRow[] = [
     {
       id: adminId1,
       email: "imagineawebsite@gmail.com",
+      phone: "(530) 520-3266",
       passwordHash: hashPw("mat-admin-1"),
       name: "Coach Sean",
       role: "ADMIN",
+      group: "Adults",
       belt: "BLACK",
       stripes: 0,
       promotedAt: nowIso(),
@@ -57,9 +75,11 @@ function getStore(): GlobalDataStore {
     {
       id: mayaId,
       email: "maya@demo.test",
+      phone: "(530) 312-8841",
       passwordHash: hashPw("osss"),
       name: "Maya R.",
       role: "STUDENT",
+      group: "Adults",
       belt: "BLUE",
       stripes: 2,
       promotedAt: daysAgo(90),
@@ -69,9 +89,11 @@ function getStore(): GlobalDataStore {
     {
       id: jordanId,
       email: "jordan@demo.test",
+      phone: "(530) 723-9912",
       passwordHash: hashPw("osss"),
       name: "Jordan P.",
       role: "STUDENT",
+      group: "Adults",
       belt: "WHITE",
       stripes: 3,
       promotedAt: daysAgo(90),
@@ -81,9 +103,11 @@ function getStore(): GlobalDataStore {
     {
       id: samId,
       email: "sam@demo.test",
+      phone: "(530) 662-4419",
       passwordHash: hashPw("osss"),
       name: "Sam K.",
       role: "STUDENT",
+      group: "Competition Team",
       belt: "PURPLE",
       stripes: 1,
       promotedAt: daysAgo(90),
@@ -93,14 +117,44 @@ function getStore(): GlobalDataStore {
     {
       id: rileyId,
       email: "riley@demo.test",
+      phone: "(530) 405-7730",
       passwordHash: hashPw("osss"),
       name: "Riley T.",
       role: "STUDENT",
+      group: "Kids",
       belt: "WHITE",
       stripes: 0,
       promotedAt: daysAgo(6),
       joinedAt: daysAgo(6),
       subscriptionStatus: "TRIAL",
+    },
+    {
+      id: leoId,
+      email: "leo@demo.test",
+      phone: "(530) 554-1298",
+      passwordHash: hashPw("osss"),
+      name: "Leo M.",
+      role: "STUDENT",
+      group: "Kids",
+      belt: "WHITE",
+      stripes: 2,
+      promotedAt: daysAgo(40),
+      joinedAt: daysAgo(95),
+      subscriptionStatus: "ACTIVE",
+    },
+    {
+      id: elenaId,
+      email: "elena@demo.test",
+      phone: "(530) 908-3351",
+      passwordHash: hashPw("osss"),
+      name: "Elena V.",
+      role: "STUDENT",
+      group: "Competition Team",
+      belt: "BLUE",
+      stripes: 3,
+      promotedAt: daysAgo(60),
+      joinedAt: daysAgo(350),
+      subscriptionStatus: "ACTIVE",
     },
   ];
 
@@ -110,12 +164,15 @@ function getStore(): GlobalDataStore {
     { id: uid(), userId: mayaId, date: daysAgo(5), classLabel: "No-Gi + Open Mat" },
     { id: uid(), userId: jordanId, date: daysAgo(1), classLabel: "Fundamentals + Rolling" },
     { id: uid(), userId: samId, date: daysAgo(2), classLabel: "All Levels Gi" },
+    { id: uid(), userId: elenaId, date: daysAgo(1), classLabel: "Competition Training" },
+    { id: uid(), userId: leoId, date: daysAgo(2), classLabel: "Kids Fundamentals" },
   ];
 
   const initialCompetitions: CompetitionRow[] = [
     { id: uid(), userId: mayaId, name: "Sacramento Open", date: daysAgo(60), division: "Adult Blue / Feather", result: "Silver" },
     { id: uid(), userId: samId, name: "IBJJF Sacramento", date: daysAgo(150), division: "Adult Purple / Light", result: "Gold" },
     { id: uid(), userId: samId, name: "Grappling Industries NorCal", date: daysAgo(30), division: "No-Gi Absolute", result: "Bronze" },
+    { id: uid(), userId: elenaId, name: "NorCal State Championship", date: daysAgo(20), division: "Adult Blue / Middle", result: "Gold" },
   ];
 
   const initialGallery: GalleryRow[] = [
@@ -146,6 +203,27 @@ function getStore(): GlobalDataStore {
     ].join("\n"),
   };
 
+  const initialBroadcasts: BroadcastRow[] = [
+    {
+      id: uid(),
+      targetGroup: "ALL",
+      channel: "ALL",
+      title: "Holiday Open Mat Schedule",
+      message: "Hey team! Open Mat is moved to 8:00 AM this upcoming Monday. All belts and groups welcome!",
+      recipientCount: 6,
+      sentAt: daysAgo(3),
+    },
+    {
+      id: uid(),
+      targetGroup: "Competition Team",
+      channel: "SMS",
+      title: "Saturday Competition Sparring",
+      message: "Competition team: weigh-in drills and high-intensity rounds start at 9:00 AM sharp tomorrow.",
+      recipientCount: 2,
+      sentAt: daysAgo(5),
+    },
+  ];
+
   g.__dbStore = {
     users: initialUsers,
     sessions: [],
@@ -153,6 +231,7 @@ function getStore(): GlobalDataStore {
     competitions: initialCompetitions,
     gallery: initialGallery,
     inquiries: [],
+    broadcasts: initialBroadcasts,
     settings: initialSettings,
   };
 
@@ -165,13 +244,15 @@ const store = getStore();
 export const Users = {
   byEmail: (email: string) => store.users.find((u) => u.email.toLowerCase() === email.toLowerCase()),
   byId: (id: string) => store.users.find((u) => u.id === id),
-  create(data: { email: string; name: string; passwordHash: string; role?: string }) {
+  create(data: { email: string; name: string; passwordHash: string; phone?: string; group?: string; role?: string }) {
     const row: UserRow = {
       id: uid(),
       email: data.email,
+      phone: data.phone ?? "",
       name: data.name,
       passwordHash: data.passwordHash,
       role: data.role ?? "STUDENT",
+      group: data.group ?? "Adults",
       belt: "WHITE",
       stripes: 0,
       promotedAt: nowIso(),
@@ -191,8 +272,30 @@ export const Users = {
       user.promotedAt = nowIso();
     }
   },
+  updateGroup(id: string, group: string) {
+    const user = store.users.find((u) => u.id === id);
+    if (user) {
+      user.group = group;
+    }
+  },
+  updateDetails(id: string, data: { name?: string; email?: string; phone?: string; group?: string; belt?: string; stripes?: number; subscriptionStatus?: string }) {
+    const user = store.users.find((u) => u.id === id);
+    if (user) {
+      if (data.name !== undefined) user.name = data.name;
+      if (data.email !== undefined) user.email = data.email;
+      if (data.phone !== undefined) user.phone = data.phone;
+      if (data.group !== undefined) user.group = data.group;
+      if (data.belt !== undefined) user.belt = data.belt;
+      if (data.stripes !== undefined) user.stripes = data.stripes;
+      if (data.subscriptionStatus !== undefined) user.subscriptionStatus = data.subscriptionStatus;
+    }
+  },
   countStudents: () => store.users.filter((u) => u.role === "STUDENT").length,
   countActive: () => store.users.filter((u) => u.role === "STUDENT" && u.subscriptionStatus === "ACTIVE").length,
+  byGroup: (group: string) => {
+    if (group === "ALL") return store.users.filter((u) => u.role === "STUDENT");
+    return store.users.filter((u) => u.role === "STUDENT" && u.group === group);
+  },
 };
 
 // ---------- Sessions ----------
@@ -287,6 +390,24 @@ export const Inquiries = {
     if (inq) inq.handled = 1;
   },
   countUnhandled: () => store.inquiries.filter((i) => i.handled === 0).length,
+};
+
+// ---------- Broadcasts / Notifications ----------
+export const Broadcasts = {
+  all: () => store.broadcasts.slice().sort((a, b) => b.sentAt.localeCompare(a.sentAt)),
+  create(data: { targetGroup: string; channel: string; title: string; message: string; recipientCount: number }) {
+    const row: BroadcastRow = {
+      id: uid(),
+      targetGroup: data.targetGroup,
+      channel: data.channel,
+      title: data.title,
+      message: data.message,
+      recipientCount: data.recipientCount,
+      sentAt: nowIso(),
+    };
+    store.broadcasts.push(row);
+    return row;
+  },
 };
 
 // ---------- Settings ----------
