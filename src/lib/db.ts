@@ -7,7 +7,7 @@ export type UserRow = {
   passwordHash: string;
   name: string;
   role: string;
-  group: string; // "Adults" | "Kids" | "Competition Team"
+  group: string; // "Kids (5-6)" | "Juniors (7-12)" | "Adults (13+)"
   belt: string;
   stripes: number;
   promotedAt: string;
@@ -46,8 +46,45 @@ type GlobalDataStore = {
 
 const g = globalThis as unknown as { __dbStore?: GlobalDataStore };
 
+const LEGACY_GROUP_MAP: Record<string, string> = {
+  Kids: "Kids (5-6)",
+  "Competition Team": "Juniors (7-12)",
+  Adults: "Adults (13+)",
+};
+
+function migrateStoreGroups(s: GlobalDataStore) {
+  for (const u of s.users) {
+    if (LEGACY_GROUP_MAP[u.group]) {
+      u.group = LEGACY_GROUP_MAP[u.group];
+    }
+  }
+  for (const b of s.broadcasts) {
+    if (LEGACY_GROUP_MAP[b.targetGroup]) {
+      b.targetGroup = LEGACY_GROUP_MAP[b.targetGroup];
+    }
+  }
+  if (s.settings.schedule) {
+    s.settings.schedule = s.settings.schedule
+      .split("\n")
+      .map((line) => {
+        const parts = line.split("|");
+        if (parts.length >= 4) {
+          const grp = parts[3].trim();
+          if (LEGACY_GROUP_MAP[grp]) {
+            parts[3] = LEGACY_GROUP_MAP[grp];
+          }
+        }
+        return parts.join("|");
+      })
+      .join("\n");
+  }
+}
+
 function getStore(): GlobalDataStore {
-  if (g.__dbStore) return g.__dbStore;
+  if (g.__dbStore) {
+    migrateStoreGroups(g.__dbStore);
+    return g.__dbStore;
+  }
 
   const adminId1 = uid();
   const mayaId = uid();
@@ -65,7 +102,7 @@ function getStore(): GlobalDataStore {
       passwordHash: hashPw("mat-admin-1"),
       name: "Coach Sean",
       role: "ADMIN",
-      group: "Adults",
+      group: "Adults (13+)",
       belt: "BLACK",
       stripes: 0,
       promotedAt: nowIso(),
@@ -79,7 +116,7 @@ function getStore(): GlobalDataStore {
       passwordHash: hashPw("osss"),
       name: "Maya R.",
       role: "STUDENT",
-      group: "Adults",
+      group: "Adults (13+)",
       belt: "BLUE",
       stripes: 2,
       promotedAt: daysAgo(90),
@@ -93,7 +130,7 @@ function getStore(): GlobalDataStore {
       passwordHash: hashPw("osss"),
       name: "Jordan P.",
       role: "STUDENT",
-      group: "Adults",
+      group: "Adults (13+)",
       belt: "WHITE",
       stripes: 3,
       promotedAt: daysAgo(90),
@@ -107,7 +144,7 @@ function getStore(): GlobalDataStore {
       passwordHash: hashPw("osss"),
       name: "Sam K.",
       role: "STUDENT",
-      group: "Competition Team",
+      group: "Juniors (7-12)",
       belt: "PURPLE",
       stripes: 1,
       promotedAt: daysAgo(90),
@@ -121,7 +158,7 @@ function getStore(): GlobalDataStore {
       passwordHash: hashPw("osss"),
       name: "Riley T.",
       role: "STUDENT",
-      group: "Kids",
+      group: "Kids (5-6)",
       belt: "WHITE",
       stripes: 0,
       promotedAt: daysAgo(6),
@@ -135,7 +172,7 @@ function getStore(): GlobalDataStore {
       passwordHash: hashPw("osss"),
       name: "Leo M.",
       role: "STUDENT",
-      group: "Kids",
+      group: "Kids (5-6)",
       belt: "WHITE",
       stripes: 2,
       promotedAt: daysAgo(40),
@@ -149,7 +186,7 @@ function getStore(): GlobalDataStore {
       passwordHash: hashPw("osss"),
       name: "Elena V.",
       role: "STUDENT",
-      group: "Competition Team",
+      group: "Juniors (7-12)",
       belt: "BLUE",
       stripes: 3,
       promotedAt: daysAgo(60),
@@ -163,16 +200,16 @@ function getStore(): GlobalDataStore {
     { id: uid(), userId: mayaId, date: daysAgo(3), classLabel: "All Levels Gi" },
     { id: uid(), userId: mayaId, date: daysAgo(5), classLabel: "No-Gi + Open Mat" },
     { id: uid(), userId: jordanId, date: daysAgo(1), classLabel: "Fundamentals + Rolling" },
-    { id: uid(), userId: samId, date: daysAgo(2), classLabel: "All Levels Gi" },
-    { id: uid(), userId: elenaId, date: daysAgo(1), classLabel: "Competition Training" },
-    { id: uid(), userId: leoId, date: daysAgo(2), classLabel: "Kids Fundamentals" },
+    { id: uid(), userId: samId, date: daysAgo(2), classLabel: "Juniors Gi & Technique" },
+    { id: uid(), userId: elenaId, date: daysAgo(1), classLabel: "Juniors Gi & Technique" },
+    { id: uid(), userId: leoId, date: daysAgo(2), classLabel: "Kids Fundamentals (5-6)" },
   ];
 
   const initialCompetitions: CompetitionRow[] = [
     { id: uid(), userId: mayaId, name: "Sacramento Open", date: daysAgo(60), division: "Adult Blue / Feather", result: "Silver" },
-    { id: uid(), userId: samId, name: "IBJJF Sacramento", date: daysAgo(150), division: "Adult Purple / Light", result: "Gold" },
-    { id: uid(), userId: samId, name: "Grappling Industries NorCal", date: daysAgo(30), division: "No-Gi Absolute", result: "Bronze" },
-    { id: uid(), userId: elenaId, name: "NorCal State Championship", date: daysAgo(20), division: "Adult Blue / Middle", result: "Gold" },
+    { id: uid(), userId: samId, name: "IBJJF Sacramento", date: daysAgo(150), division: "Junior / Light", result: "Gold" },
+    { id: uid(), userId: samId, name: "Grappling Industries NorCal", date: daysAgo(30), division: "No-Gi Division", result: "Bronze" },
+    { id: uid(), userId: elenaId, name: "NorCal State Championship", date: daysAgo(20), division: "Junior / Middle", result: "Gold" },
   ];
 
   const initialGallery: GalleryRow[] = [
@@ -196,12 +233,14 @@ function getStore(): GlobalDataStore {
     coachBio:
       "Coach Sean leads every class at Imagine with the same philosophy: a clean, welcoming space where anyone can train hard and grow. Traditional roots, Brazilian Jiu Jitsu pressure, and a community that shows up for each other.",
     schedule: [
-      "Monday|6:00 – 7:30 PM|Fundamentals + Rolling|Adults|",
-      "Tuesday|4:30 – 5:30 PM|Kids Fundamentals & Games|Kids|",
-      "Wednesday|5:00 – 7:30 PM|All Levels Gi|Adults|",
-      "Thursday|4:30 – 5:30 PM|Kids Gi & Self Defense|Kids|",
-      "Friday|5:00 – 7:30 PM|No-Gi + Open Mat|ALL|",
-      "Saturday|9:00 – 11:00 AM|Competition Sparring & Rounds|Competition Team|",
+      "Monday|4:00 – 4:45 PM|Kids Fundamentals & Games|Kids (5-6)|",
+      "Monday|5:00 – 6:00 PM|Juniors Gi & Technique|Juniors (7-12)|",
+      "Monday|6:00 – 7:30 PM|Fundamentals + Rolling|Adults (13+)|",
+      "Wednesday|4:00 – 4:45 PM|Kids Self Defense & Balance|Kids (5-6)|",
+      "Wednesday|5:00 – 6:00 PM|Juniors Gi & Positional Drilling|Juniors (7-12)|",
+      "Wednesday|6:00 – 7:30 PM|All Levels Gi|Adults (13+)|",
+      "Friday|5:00 – 6:00 PM|Juniors No-Gi & Live Rounds|Juniors (7-12)|",
+      "Friday|6:00 – 7:30 PM|No-Gi + Open Mat|Adults (13+)|",
       "Sunday|6:30 – 9:00 AM|Dawn Patrol Open Mat|ALL|",
     ].join("\n"),
   };
@@ -220,10 +259,10 @@ function getStore(): GlobalDataStore {
     },
     {
       id: uid(),
-      targetGroup: "Competition Team",
+      targetGroup: "Juniors (7-12)",
       channel: "SMS",
-      title: "Saturday Competition Sparring",
-      message: "Competition team: weigh-in drills and high-intensity rounds start at 9:00 AM sharp tomorrow.",
+      title: "Juniors Friday No-Gi Reminder",
+      message: "Juniors (7-12) group: remember to bring rashguards and shorts for Friday No-Gi at 5:00 PM.",
       recipientCount: 2,
       recipientNames: ["Sam K.", "Elena V."],
       isScheduleChange: true,
@@ -259,7 +298,7 @@ export const Users = {
       name: data.name,
       passwordHash: data.passwordHash,
       role: data.role ?? "STUDENT",
-      group: data.group ?? "Adults",
+      group: data.group ?? "Adults (13+)",
       belt: "WHITE",
       stripes: 0,
       promotedAt: nowIso(),

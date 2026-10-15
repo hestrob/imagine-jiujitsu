@@ -13,7 +13,7 @@ export default async function AdminSchedulePage() {
     name: s.name,
     email: s.email,
     phone: s.phone || "",
-    group: s.group || "Adults",
+    group: s.group || "Adults (13+)",
     belt: s.belt,
     stripes: s.stripes,
     subscriptionStatus: s.subscriptionStatus,

@@ -1,4 +1,4 @@
-export const GROUPS = ["Adults", "Kids", "Competition Team"] as const;
+export const GROUPS = ["Kids (5-6)", "Juniors (7-12)", "Adults (13+)"] as const;
 export type MemberGroup = (typeof GROUPS)[number];
 
 export const DAYS_OF_WEEK = [
@@ -13,7 +13,7 @@ export const DAYS_OF_WEEK = [
 
 export type BroadcastRow = {
   id: string;
-  targetGroup: string; // "ALL" | "Adults" | "Kids" | "Competition Team"
+  targetGroup: string; // "ALL" | "Kids (5-6)" | "Juniors (7-12)" | "Adults (13+)"
   channel: string; // "IN_APP" | "SMS" | "EMAIL" | "ALL"
   title: string;
   message: string;

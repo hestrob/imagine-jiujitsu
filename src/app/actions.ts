@@ -184,11 +184,14 @@ export async function markInquiryHandled(formData: FormData) {
 export async function changeStudentGroup(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id") || "");
-  const group = String(formData.get("group") || "Adults");
+  const group = String(formData.get("group") || "Adults (13+)");
   if (id) {
     Users.updateGroup(id, group);
     revalidatePath("/admin/roster");
     revalidatePath("/admin/broadcast");
+    revalidatePath("/admin/schedule");
+    revalidatePath("/admin");
+    revalidatePath("/portal");
   }
 }
 
@@ -199,7 +202,7 @@ export async function updateStudentDetails(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").toLowerCase().trim();
   const phone = String(formData.get("phone") || "").trim();
-  const group = String(formData.get("group") || "Adults");
+  const group = String(formData.get("group") || "Adults (13+)");
   const belt = String(formData.get("belt") || "WHITE");
   const stripes = Math.max(0, Math.min(4, Number(formData.get("stripes") || 0)));
   const subscriptionStatus = String(formData.get("subscriptionStatus") || "TRIAL");
@@ -207,6 +210,9 @@ export async function updateStudentDetails(formData: FormData) {
   Users.updateDetails(id, { name, email, phone, group, belt, stripes, subscriptionStatus });
   revalidatePath("/admin/roster");
   revalidatePath("/admin/broadcast");
+  revalidatePath("/admin/schedule");
+  revalidatePath("/admin");
+  revalidatePath("/portal");
 }
 
 export async function addStudentMember(formData: FormData) {
@@ -214,7 +220,7 @@ export async function addStudentMember(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").toLowerCase().trim();
   const phone = String(formData.get("phone") || "").trim();
-  const group = String(formData.get("group") || "Adults");
+  const group = String(formData.get("group") || "Adults (13+)");
   const belt = String(formData.get("belt") || "WHITE");
   const stripes = Math.max(0, Math.min(4, Number(formData.get("stripes") || 0)));
   const subscriptionStatus = String(formData.get("subscriptionStatus") || "ACTIVE");

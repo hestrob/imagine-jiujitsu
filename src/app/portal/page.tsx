@@ -27,7 +27,7 @@ export default async function PortalPage() {
   const competitions = Competitions.forUser(user.id);
   const settings = await getSettings();
   const fullSchedule = parseSchedule(settings.schedule);
-  const userGroup = user.group || "Adults";
+  const userGroup = user.group || "Adults (13+)";
   const mySchedule = fullSchedule.filter(
     (r) => !r.group || r.group === "ALL" || r.group === userGroup
   );

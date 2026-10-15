@@ -9,7 +9,7 @@ export default async function BroadcastPage() {
     name: s.name,
     email: s.email,
     phone: s.phone || "",
-    group: s.group || "Adults",
+    group: s.group || "Adults (13+)",
   }));
 
   const history = Broadcasts.all();

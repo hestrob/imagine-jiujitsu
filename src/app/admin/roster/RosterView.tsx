@@ -46,12 +46,12 @@ export function RosterView({ students }: { students: StudentData[] }) {
 
   const groupColor = (group: string) => {
     switch (group) {
-      case "Adults":
-        return "bg-blue-100 text-blue-900 border-blue-300";
-      case "Kids":
+      case "Kids (5-6)":
         return "bg-amber-100 text-amber-900 border-amber-300";
-      case "Competition Team":
+      case "Juniors (7-12)":
         return "bg-purple-100 text-purple-900 border-purple-300";
+      case "Adults (13+)":
+        return "bg-blue-100 text-blue-900 border-blue-300";
       default:
         return "bg-neutral-100 text-neutral-800 border-neutral-300";
     }
@@ -103,7 +103,7 @@ export function RosterView({ students }: { students: StudentData[] }) {
             </div>
             <div>
               <label className="label">Group</label>
-              <select name="group" defaultValue="Adults" className="field">
+              <select name="group" defaultValue="Adults (13+)" className="field">
                 {GROUPS.map((g) => (
                   <option key={g} value={g}>
                     {g}
