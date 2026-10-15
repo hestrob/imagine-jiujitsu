@@ -13,6 +13,7 @@ import {
   changeStudentGroup,
   updateStudentDetails,
   addCompetition,
+  deleteStudent,
 } from "@/app/actions";
 import { OnboardingForm } from "@/app/join/OnboardingForm";
 
@@ -644,6 +645,21 @@ export function RosterView({ students }: { students: StudentData[] }) {
                     </div>
                     <button className="btn !py-2 !text-xs">Add Result</button>
                   </form>
+
+                  <div className="md:col-span-2 border-t border-line pt-3 flex items-center justify-between">
+                    <span className="font-mono text-[11px] text-ink/50">
+                      Need to remove {s.name} from the academy roster?
+                    </span>
+                    <form action={deleteStudent}>
+                      <input type="hidden" name="id" value={s.id} />
+                      <button
+                        type="submit"
+                        className="border border-rose-300 bg-rose-50 px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-rose-700 hover:bg-rose-600 hover:text-white transition-colors"
+                      >
+                        Remove Student
+                      </button>
+                    </form>
+                  </div>
                 </div>
               </details>
             </div>

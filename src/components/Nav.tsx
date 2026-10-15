@@ -10,6 +10,7 @@ export async function Nav() {
     ["/pricing", "Pricing"],
     ["/gallery", "Gallery"],
     ["/video", "The Wall"],
+    ["/join", "Onboarding"],
     ["/contact", "Visit"],
   ] as const;
 
@@ -29,7 +30,9 @@ export async function Nav() {
             </a>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-mat/90 font-semibold">First Week Free</span>
+            <Link href="/join" className="text-white hover:text-crimson-bright hover:underline font-semibold">
+              Student Onboarding →
+            </Link>
             <span className="text-mat/30">·</span>
             <Link href="/pricing" className="text-crimson-bright hover:underline font-semibold">
               $60/mo Unlimited
@@ -68,7 +71,7 @@ export async function Nav() {
           ))}
         </div>
 
-        <div className="flex items-center gap-3 font-mono text-xs uppercase tracking-widest">
+        <div className="flex items-center gap-2.5 font-mono text-xs uppercase tracking-widest">
           {user ? (
             <>
               <Link
@@ -85,6 +88,9 @@ export async function Nav() {
             <>
               <Link href="/login" className="hidden sm:inline-block font-bold text-ink/80 hover:text-crimson px-2 py-1">
                 Sign in
+              </Link>
+              <Link href="/join" className="hidden md:inline-flex border border-ink px-3.5 py-2 font-bold text-ink hover:bg-ink hover:text-white transition-colors">
+                Onboard
               </Link>
               <Link href="/contact" className="btn !px-4 !py-2.5 !text-xs">
                 Free Class

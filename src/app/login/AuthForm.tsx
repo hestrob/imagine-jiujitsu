@@ -20,11 +20,19 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
       )}
       <div>
         <label className="label" htmlFor="email">Email</label>
-        <input className="field" id="email" name="email" type="email" required />
+        <input className="field" id="email" name="email" type="email" autoComplete="email" required />
       </div>
       <div>
         <label className="label" htmlFor="password">Password</label>
-        <input className="field" id="password" name="password" type="password" required minLength={6} />
+        <input
+          className="field"
+          id="password"
+          name="password"
+          type="password"
+          autoComplete={mode === "signin" ? "current-password" : "new-password"}
+          required
+          minLength={mode === "signup" ? 8 : 6}
+        />
       </div>
       {state?.error && <p className="text-sm text-red-700">{state.error}</p>}
       <Submit label={mode === "signin" ? "Sign in" : "Create my account"} />

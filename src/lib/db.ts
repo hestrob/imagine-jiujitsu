@@ -32,7 +32,6 @@ export { GROUPS, type MemberGroup, type BroadcastRow };
 
 export const uid = () => randomUUID();
 export const nowIso = () => new Date().toISOString();
-const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString();
 
 const hashPw = (pw: string) => {
   const salt = randomBytes(16).toString("hex");
@@ -59,51 +58,38 @@ const LEGACY_GROUP_MAP: Record<string, string> = {
   Adults: "Adults (13+)",
 };
 
-const DEMO_BACKFILL: Record<string, Partial<UserRow>> = {
-  "maya@demo.test": { dob: "1998-11-04", memberType: "EXISTING" },
-  "jordan@demo.test": { dob: "1994-03-15", memberType: "EXISTING" },
-  "sam@demo.test": {
-    dob: "2013-10-28",
-    belt: "ORANGE",
-    parentName: "David Kim",
-    parentPhone: "(530) 662-4419",
-    parentEmail: "david.kim@demo.test",
-    memberType: "EXISTING",
-  },
-  "riley@demo.test": {
-    dob: "2019-10-22",
-    parentName: "Sarah Taylor",
-    parentPhone: "(530) 405-7730",
-    parentEmail: "sarah.t@demo.test",
-    medicalNotes: "Mild seasonal allergies",
-    memberType: "NEW",
-  },
-  "leo@demo.test": {
-    dob: "2020-05-12",
-    belt: "GREY",
-    parentName: "Carlos Martinez",
-    parentPhone: "(530) 554-1298",
-    parentEmail: "carlos.m@demo.test",
-    memberType: "EXISTING",
-  },
-  "elena@demo.test": {
-    dob: "2010-11-02",
-    belt: "GREEN",
-    parentName: "Maria Vasquez",
-    parentPhone: "(530) 908-3351",
-    parentEmail: "maria.v@demo.test",
-    memberType: "EXISTING",
-  },
-};
+const DEMO_EMAILS = new Set([
+  "maya@demo.test",
+  "jordan@demo.test",
+  "sam@demo.test",
+  "riley@demo.test",
+  "leo@demo.test",
+  "elena@demo.test",
+]);
 
 function migrateStoreGroups(s: GlobalDataStore) {
+  // Purge any legacy sample/demo students and their associated records from active memory
+  const demoUserIds = new Set(
+    s.users
+      .filter((u) => DEMO_EMAILS.has(u.email.toLowerCase()) || u.email.endsWith("@demo.test"))
+      .map((u) => u.id)
+  );
+  if (demoUserIds.size > 0) {
+    s.users = s.users.filter((u) => !demoUserIds.has(u.id));
+    s.attendance = s.attendance.filter((a) => !demoUserIds.has(a.userId));
+    s.competitions = s.competitions.filter((c) => !demoUserIds.has(c.userId));
+    s.sessions = s.sessions.filter((sess) => !demoUserIds.has(sess.userId));
+    s.broadcasts = s.broadcasts.filter(
+      (b) =>
+        !b.recipientNames?.some((name) =>
+          ["Maya R.", "Jordan P.", "Sam K.", "Riley T.", "Leo M.", "Elena V."].includes(name)
+        )
+    );
+  }
+
   for (const u of s.users) {
     if (LEGACY_GROUP_MAP[u.group]) {
       u.group = LEGACY_GROUP_MAP[u.group];
-    }
-    const backfill = DEMO_BACKFILL[u.email];
-    if (backfill && !u.dob) {
-      Object.assign(u, backfill);
     }
   }
   for (const b of s.broadcasts) {
@@ -155,19 +141,13 @@ function getStore(): GlobalDataStore {
   }
 
   const adminId1 = uid();
-  const mayaId = uid();
-  const jordanId = uid();
-  const samId = uid();
-  const rileyId = uid();
-  const leoId = uid();
-  const elenaId = uid();
 
   const initialUsers: UserRow[] = [
     {
       id: adminId1,
       email: "imagineawebsite@gmail.com",
       phone: "(530) 520-3266",
-      passwordHash: hashPw("mat-admin-1"),
+      passwordHash: hashPw(process.env.ADMIN_INITIAL_PASSWORD || "mat-admin-1"),
       name: "Coach Sean",
       role: "ADMIN",
       group: "Adults (13+)",
@@ -177,134 +157,10 @@ function getStore(): GlobalDataStore {
       joinedAt: nowIso(),
       subscriptionStatus: "ACTIVE",
     },
-    {
-      id: mayaId,
-      email: "maya@demo.test",
-      phone: "(530) 312-8841",
-      passwordHash: hashPw("osss"),
-      name: "Maya R.",
-      role: "STUDENT",
-      group: "Adults (13+)",
-      belt: "BLUE",
-      stripes: 2,
-      promotedAt: daysAgo(90),
-      joinedAt: daysAgo(210),
-      subscriptionStatus: "ACTIVE",
-      dob: "1998-11-04",
-      memberType: "EXISTING",
-    },
-    {
-      id: jordanId,
-      email: "jordan@demo.test",
-      phone: "(530) 723-9912",
-      passwordHash: hashPw("osss"),
-      name: "Jordan P.",
-      role: "STUDENT",
-      group: "Adults (13+)",
-      belt: "WHITE",
-      stripes: 3,
-      promotedAt: daysAgo(90),
-      joinedAt: daysAgo(120),
-      subscriptionStatus: "ACTIVE",
-      dob: "1994-03-15",
-      memberType: "EXISTING",
-    },
-    {
-      id: samId,
-      email: "sam@demo.test",
-      phone: "(530) 662-4419",
-      passwordHash: hashPw("osss"),
-      name: "Sam K.",
-      role: "STUDENT",
-      group: "Juniors (7-12)",
-      belt: "ORANGE",
-      stripes: 1,
-      promotedAt: daysAgo(90),
-      joinedAt: daysAgo(800),
-      subscriptionStatus: "ACTIVE",
-      dob: "2013-10-28",
-      parentName: "David Kim",
-      parentPhone: "(530) 662-4419",
-      parentEmail: "david.kim@demo.test",
-      memberType: "EXISTING",
-    },
-    {
-      id: rileyId,
-      email: "riley@demo.test",
-      phone: "(530) 405-7730",
-      passwordHash: hashPw("osss"),
-      name: "Riley T.",
-      role: "STUDENT",
-      group: "Kids (5-6)",
-      belt: "WHITE",
-      stripes: 0,
-      promotedAt: daysAgo(6),
-      joinedAt: daysAgo(6),
-      subscriptionStatus: "TRIAL",
-      dob: "2019-10-22",
-      parentName: "Sarah Taylor",
-      parentPhone: "(530) 405-7730",
-      parentEmail: "sarah.t@demo.test",
-      medicalNotes: "Mild seasonal allergies",
-      memberType: "NEW",
-    },
-    {
-      id: leoId,
-      email: "leo@demo.test",
-      phone: "(530) 554-1298",
-      passwordHash: hashPw("osss"),
-      name: "Leo M.",
-      role: "STUDENT",
-      group: "Kids (5-6)",
-      belt: "GREY",
-      stripes: 2,
-      promotedAt: daysAgo(40),
-      joinedAt: daysAgo(95),
-      subscriptionStatus: "ACTIVE",
-      dob: "2020-05-12",
-      parentName: "Carlos Martinez",
-      parentPhone: "(530) 554-1298",
-      parentEmail: "carlos.m@demo.test",
-      memberType: "EXISTING",
-    },
-    {
-      id: elenaId,
-      email: "elena@demo.test",
-      phone: "(530) 908-3351",
-      passwordHash: hashPw("osss"),
-      name: "Elena V.",
-      role: "STUDENT",
-      group: "Juniors (7-12)",
-      belt: "GREEN",
-      stripes: 3,
-      promotedAt: daysAgo(60),
-      joinedAt: daysAgo(350),
-      subscriptionStatus: "ACTIVE",
-      dob: "2010-11-02",
-      parentName: "Maria Vasquez",
-      parentPhone: "(530) 908-3351",
-      parentEmail: "maria.v@demo.test",
-      memberType: "EXISTING",
-    },
   ];
 
-  const initialAttendance: AttendanceRow[] = [
-    { id: uid(), userId: mayaId, date: daysAgo(1), classLabel: "Fundamentals + Rolling" },
-    { id: uid(), userId: mayaId, date: daysAgo(3), classLabel: "All Levels Gi" },
-    { id: uid(), userId: mayaId, date: daysAgo(5), classLabel: "No-Gi + Open Mat" },
-    { id: uid(), userId: jordanId, date: daysAgo(1), classLabel: "Fundamentals + Rolling" },
-    { id: uid(), userId: samId, date: daysAgo(2), classLabel: "Juniors Gi & Technique" },
-    { id: uid(), userId: elenaId, date: daysAgo(1), classLabel: "Juniors Gi & Technique" },
-    { id: uid(), userId: leoId, date: daysAgo(2), classLabel: "Kids Fundamentals (5-6)" },
-  ];
-
-  const initialCompetitions: CompetitionRow[] = [
-    { id: uid(), userId: mayaId, name: "Sacramento Open", date: daysAgo(60), division: "Adult Blue / Feather", result: "Silver" },
-    { id: uid(), userId: samId, name: "IBJJF Sacramento", date: daysAgo(150), division: "Junior / Light", result: "Gold" },
-    { id: uid(), userId: samId, name: "Grappling Industries NorCal", date: daysAgo(30), division: "No-Gi Division", result: "Bronze" },
-    { id: uid(), userId: elenaId, name: "NorCal State Championship", date: daysAgo(20), division: "Junior / Middle", result: "Gold" },
-  ];
-
+  const initialAttendance: AttendanceRow[] = [];
+  const initialCompetitions: CompetitionRow[] = [];
   const initialGallery: GalleryRow[] = getDefaultGallery();
 
   const initialSettings: Record<string, string> = {
@@ -331,30 +187,7 @@ function getStore(): GlobalDataStore {
     ].join("\n"),
   };
 
-  const initialBroadcasts: BroadcastRow[] = [
-    {
-      id: uid(),
-      targetGroup: "ALL",
-      channel: "ALL",
-      title: "Holiday Open Mat Schedule",
-      message: "Hey team! Open Mat is moved to 8:00 AM this upcoming Monday. All belts and groups welcome!",
-      recipientCount: 6,
-      recipientNames: ["Maya R.", "Jordan P.", "Sam K.", "Riley T.", "Leo M.", "Elena V."],
-      isScheduleChange: true,
-      sentAt: daysAgo(3),
-    },
-    {
-      id: uid(),
-      targetGroup: "Juniors (7-12)",
-      channel: "SMS",
-      title: "Juniors Friday No-Gi Reminder",
-      message: "Juniors (7-12) group: remember to bring rashguards and shorts for Friday No-Gi at 5:00 PM.",
-      recipientCount: 2,
-      recipientNames: ["Sam K.", "Elena V."],
-      isScheduleChange: true,
-      sentAt: daysAgo(5),
-    },
-  ];
+  const initialBroadcasts: BroadcastRow[] = [];
 
   g.__dbStore = {
     users: initialUsers,
@@ -473,6 +306,21 @@ export const Users = {
       if (data.medicalNotes !== undefined) user.medicalNotes = data.medicalNotes;
     }
   },
+  updatePassword(id: string, passwordHash: string) {
+    const user = store.users.find((u) => u.id === id);
+    if (user) {
+      user.passwordHash = passwordHash;
+    }
+  },
+  delete(id: string) {
+    const user = store.users.find((u) => u.id === id);
+    if (!user || user.role === "ADMIN") return false;
+    store.users = store.users.filter((u) => u.id !== id);
+    store.sessions = store.sessions.filter((s) => s.userId !== id);
+    store.attendance = store.attendance.filter((a) => a.userId !== id);
+    store.competitions = store.competitions.filter((c) => c.userId !== id);
+    return true;
+  },
   countStudents: () => store.users.filter((u) => u.role === "STUDENT").length,
   countActive: () => store.users.filter((u) => u.role === "STUDENT" && u.subscriptionStatus === "ACTIVE").length,
   byGroup: (group: string) => {
@@ -484,16 +332,25 @@ export const Users = {
 // ---------- Sessions ----------
 export const Sessions = {
   create(userId: string, expiresAt: Date) {
+    const now = new Date().toISOString();
+    store.sessions = store.sessions.filter((s) => s.expiresAt > now);
     const id = uid();
     const session = { id, userId, expiresAt: expiresAt.toISOString() };
     store.sessions.push(session);
     return session;
   },
   get(id: string) {
+    const now = new Date().toISOString();
+    store.sessions = store.sessions.filter((s) => s.expiresAt > now);
     return store.sessions.find((s) => s.id === id);
   },
   destroy(id: string) {
     store.sessions = store.sessions.filter((s) => s.id !== id);
+  },
+  destroyAllForUser(userId: string, keepSessionId?: string) {
+    store.sessions = store.sessions.filter(
+      (s) => s.userId !== userId || (keepSessionId && s.id === keepSessionId)
+    );
   },
 };
 

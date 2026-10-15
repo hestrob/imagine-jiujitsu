@@ -1,6 +1,7 @@
 import { getSettings } from "@/lib/settings";
 import { getTwilioStatus } from "@/lib/twilio";
 import { saveSettings } from "@/app/actions";
+import { PasswordChangeForm } from "@/components/PasswordChangeForm";
 
 export const metadata = { title: "Settings — Admin" };
 
@@ -8,13 +9,28 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
   const s = await getSettings();
   const twilio = await getTwilioStatus();
   return (
-    <div className="max-w-3xl">
-      <h1 className="display-tight text-3xl">Site settings</h1>
-      <p className="mt-1 text-sm text-ink/60">Everything here updates the public site the moment you hit save.</p>
-      {searchParams.saved && (
-        <p className="mt-3 border border-flow bg-white px-4 py-2 font-mono text-xs uppercase tracking-widest text-flow">Saved</p>
-      )}
-      <form action={saveSettings} className="mt-6 space-y-6">
+    <div className="max-w-3xl space-y-8">
+      <div>
+        <h1 className="display-tight text-3xl">Site settings &amp; security</h1>
+        <p className="mt-1 text-sm text-ink/60">Everything here updates the public site the moment you hit save.</p>
+        {searchParams.saved && (
+          <p className="mt-3 border border-flow bg-white px-4 py-2 font-mono text-xs uppercase tracking-widest text-flow">Saved</p>
+        )}
+      </div>
+
+      {/* Admin Password Rotation */}
+      <section className="border-2 border-ink bg-white p-5 space-y-3 shadow-sm">
+        <div>
+          <p className="eyebrow text-crimson">Admin Account Security</p>
+          <h2 className="font-display uppercase text-2xl mt-0.5">Change Admin Password</h2>
+          <p className="text-xs text-ink/60">
+            Rotate your admin password regularly. Changing your password invalidates all other active sessions.
+          </p>
+        </div>
+        <PasswordChangeForm />
+      </section>
+
+      <form action={saveSettings} className="space-y-6">
         <section className="border border-line bg-white p-4 space-y-3">
           <div className="flex items-center justify-between">
             <p className="eyebrow text-ink/50">Twilio SMS Alerts</p>
@@ -68,7 +84,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
         </section>
         <section className="border border-line bg-white p-4 space-y-3">
           <p className="eyebrow text-ink/50">Schedule</p>
-          <p className="text-xs text-ink/60">One class per line: <code>Day|Time|Class name</code></p>
+          <p className="text-xs text-ink/60">One class per line: <code>Day|Time|Class name|Group|Note</code></p>
           <textarea name="schedule" rows={6} className="field font-mono text-xs" defaultValue={s.schedule} />
         </section>
         <button className="btn">Save settings</button>
@@ -76,3 +92,4 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
     </div>
   );
 }
+

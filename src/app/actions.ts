@@ -3,12 +3,24 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { writeFile } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
 import path from "node:path";
 import {
-  AttendanceRepo, Broadcasts, Competitions, Gallery, Inquiries, Settings, Users, uid,
+  AttendanceRepo, Broadcasts, Competitions, Gallery, Inquiries, Sessions, Settings, Users, uid,
 } from "@/lib/db";
 import {
-  createSession, currentUser, destroySession, hashPassword, requireAdmin, verifyPassword,
+  checkLoginRateLimit,
+  clearLoginAttempts,
+  createSession,
+  currentSessionId,
+  currentUser,
+  destroySession,
+  hashPassword,
+  recordFailedLogin,
+  requireAdmin,
+  validatePasswordStrength,
+  verifyPassword,
+  verifyPasswordDummy,
 } from "@/lib/auth";
 import { calculateAge, suggestGroupFromAge } from "@/lib/belts";
 import { provisionWoodlandTrialNumber, sendTwilioBulkSms } from "@/lib/twilio";
@@ -49,10 +61,32 @@ export type OnboardingActionState = {
 export async function signIn(_prev: { error?: string } | undefined, formData: FormData) {
   const email = String(formData.get("email") || "").toLowerCase().trim();
   const password = String(formData.get("password") || "");
+  if (!email || !password) {
+    return { error: "Please enter both your email and password." };
+  }
+
+  const rateLimit = checkLoginRateLimit(email);
+  if (!rateLimit.allowed) {
+    return {
+      error: `Too many failed sign-in attempts. Please wait ${rateLimit.retryAfterMinutes} minute${
+        rateLimit.retryAfterMinutes === 1 ? "" : "s"
+      } before trying again.`,
+    };
+  }
+
   const user = Users.byEmail(email);
-  if (!user || !verifyPassword(password, user.passwordHash)) {
+  if (!user) {
+    verifyPasswordDummy(password);
+    recordFailedLogin(email);
     return { error: "Email or password doesn't match." };
   }
+
+  if (!verifyPassword(password, user.passwordHash)) {
+    recordFailedLogin(email);
+    return { error: "Email or password doesn't match." };
+  }
+
+  clearLoginAttempts(email);
   await createSession(user.id);
   redirect(user.role === "ADMIN" ? "/admin" : "/portal");
 }
@@ -61,13 +95,52 @@ export async function signUp(_prev: { error?: string } | undefined, formData: Fo
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").toLowerCase().trim();
   const password = String(formData.get("password") || "");
-  if (!name || !email || password.length < 6) {
-    return { error: "Fill in your name and email, and pick a password of 6+ characters." };
+  if (!name || !email) {
+    return { error: "Please fill in your name and email address." };
+  }
+  const pwError = validatePasswordStrength(password);
+  if (pwError) {
+    return { error: pwError };
   }
   if (Users.byEmail(email)) return { error: "That email already has an account. Sign in instead." };
   const user = Users.create({ name, email, passwordHash: hashPassword(password) });
   await createSession(user.id);
   redirect("/portal");
+}
+
+export async function changePassword(
+  _prev: { ok?: boolean; error?: string } | undefined,
+  formData: FormData
+): Promise<{ ok?: boolean; error?: string }> {
+  const user = await currentUser();
+  if (!user) {
+    return { error: "You must be signed in to change your password." };
+  }
+
+  const currentPw = String(formData.get("currentPassword") || "");
+  const newPw = String(formData.get("newPassword") || "");
+  const confirmPw = String(formData.get("confirmPassword") || "");
+
+  if (!verifyPassword(currentPw, user.passwordHash)) {
+    return { error: "Your current password is incorrect." };
+  }
+
+  if (newPw !== confirmPw) {
+    return { error: "New password and confirmation do not match." };
+  }
+
+  const pwError = validatePasswordStrength(newPw);
+  if (pwError) {
+    return { error: pwError };
+  }
+
+  Users.updatePassword(user.id, hashPassword(newPw));
+  const activeSessionId = await currentSessionId();
+  Sessions.destroyAllForUser(user.id, activeSessionId);
+
+  revalidatePath("/portal");
+  revalidatePath("/admin/settings");
+  return { ok: true };
 }
 
 export async function submitOnboarding(
@@ -79,6 +152,9 @@ export async function submitOnboarding(
   const parentEmail = String(formData.get("parentEmail") || "").toLowerCase().trim();
   const passwordRaw = String(formData.get("password") || "").trim();
   const studentsJson = String(formData.get("studentsJson") || "[]");
+
+  const viewer = await currentUser();
+  const isAdmin = viewer?.role === "ADMIN";
 
   let studentsInput: OnboardStudentPayload[] = [];
   try {
@@ -118,8 +194,27 @@ export async function submitOnboarding(
     return { error: "A primary / billing email address is required." };
   }
 
+  // Enforce strong password for public self-onboarding (prevent weak default passwords)
+  if (!isAdmin) {
+    const pwError = validatePasswordStrength(passwordRaw);
+    if (pwError) {
+      return { error: pwError };
+    }
+
+    // Prevent unauthenticated takeover of existing accounts with the same email
+    const existingAccountByEmail = Users.byEmail(parentEmail);
+    if (existingAccountByEmail && (!viewer || viewer.id !== existingAccountByEmail.id)) {
+      return {
+        error:
+          "An account with this email address already exists. Please sign in at /login to manage your profile.",
+      };
+    }
+  }
+
   const familyId = studentsInput.length > 1 || parentName ? uid() : undefined;
-  const pwHash = hashPassword(passwordRaw.length >= 6 ? passwordRaw : "osss");
+  const pwHash = isAdmin
+    ? hashPassword(passwordRaw.length >= 8 ? passwordRaw : randomBytes(16).toString("hex"))
+    : hashPassword(passwordRaw);
   const existingRoster = Users.students();
   const onboardedList: NonNullable<OnboardingActionState["onboarded"]> = [];
 
@@ -139,10 +234,10 @@ export async function submitOnboarding(
         : new Date().toISOString();
     const subscriptionStatus = memberType === "EXISTING" ? "ACTIVE" : "TRIAL";
 
-    // Check if an existing student with the same name is already on the roster so we update instead of duplicating
-    const matchByName = existingRoster.find(
-      (u) => u.name.toLowerCase() === cleanName.toLowerCase()
-    );
+    // Only allow matching & updating an existing student by name if performed by an Admin
+    const matchByName = isAdmin
+      ? existingRoster.find((u) => u.name.toLowerCase() === cleanName.toLowerCase())
+      : undefined;
 
     if (matchByName) {
       Users.updateDetails(matchByName.id, {
@@ -207,8 +302,7 @@ export async function submitOnboarding(
     }
   }
 
-  // If submitted by a public user (not signed in as Admin), sign them into their student portal session
-  const viewer = await currentUser();
+  // If submitted by a public user (not signed in as Admin), sign them into their new student portal session
   if (!viewer && onboardedList.length > 0) {
     await createSession(onboardedList[0].id);
   }
@@ -466,12 +560,24 @@ export async function addStudentMember(formData: FormData) {
     parentEmail: parentEmail || email || undefined,
     medicalNotes: medicalNotes || undefined,
     memberType,
-    passwordHash: hashPassword("osss"),
+    passwordHash: hashPassword(randomBytes(16).toString("hex")),
   });
 
   revalidatePath("/admin");
   revalidatePath("/admin/roster");
   revalidatePath("/admin/broadcast");
+}
+
+export async function deleteStudent(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id") || "");
+  if (id) {
+    Users.delete(id);
+    revalidatePath("/admin");
+    revalidatePath("/admin/roster");
+    revalidatePath("/admin/schedule");
+    revalidatePath("/admin/broadcast");
+  }
 }
 
 // ---------- Admin: broadcasts & alerts ----------

@@ -11,8 +11,10 @@ import {
   isYouthBelt,
   nextBelt,
 } from "@/lib/belts";
+import { getGroupTheme } from "@/lib/constants";
 import { getSettings, parseSchedule } from "@/lib/settings";
 import { BeltBadge } from "@/components/BeltBadge";
+import { PasswordChangeForm } from "@/components/PasswordChangeForm";
 
 export const metadata = { title: "My Mat — Imagine Jiu Jitsu" };
 
@@ -37,6 +39,7 @@ export default async function PortalPage() {
   const settings = await getSettings();
   const fullSchedule = parseSchedule(settings.schedule);
   const userGroup = user.group || "Adults (13+)";
+  const userTheme = getGroupTheme(userGroup);
   const mySchedule = fullSchedule.filter(
     (r) => !r.group || r.group === "ALL" || r.group === userGroup
   );
@@ -67,8 +70,8 @@ export default async function PortalPage() {
       <h1 className="display-tight mt-2 text-5xl">{user.name}</h1>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <BeltBadge belt={user.belt} stripes={user.stripes} />
-        <span className="border border-line bg-white px-2.5 py-1 font-mono text-xs uppercase tracking-wider text-ink/80">
-          Group: <strong>{userGroup}</strong>
+        <span className={`border px-2.5 py-1 font-mono text-xs uppercase tracking-wider font-bold ${userTheme.badgeSolid}`}>
+          Group: {userGroup}
         </span>
         {bdayInfo && (
           <span className="border border-line bg-white px-2.5 py-1 font-mono text-xs uppercase tracking-wider text-ink/70">
@@ -86,26 +89,32 @@ export default async function PortalPage() {
               {mySchedule.length} weekly classes
             </span>
           </div>
-          <ul className="mt-4 divide-y divide-line">
-            {mySchedule.map((row, idx) => (
-              <li key={idx} className="py-3 first:pt-0 last:pb-0 space-y-1">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="font-display uppercase text-lg">{row.day}</span>
-                  <span className="font-mono text-xs text-flow font-semibold">{row.time}</span>
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-ink/80">
-                  <span>{row.label}</span>
-                  <span className="font-mono text-[10px] uppercase text-ink/50 bg-neutral-100 px-1.5 py-0.5 rounded">
-                    {row.group === "ALL" ? "All Groups" : row.group}
-                  </span>
-                </div>
-                {row.note && (
-                  <p className="mt-1 rounded bg-amber-100 border border-amber-300 px-2.5 py-1 font-mono text-xs text-amber-950 font-semibold">
-                    ⚠ Schedule Notice: {row.note}
-                  </p>
-                )}
-              </li>
-            ))}
+          <ul className="mt-4 space-y-2.5">
+            {mySchedule.map((row, idx) => {
+              const rowTheme = getGroupTheme(row.group);
+              return (
+                <li
+                  key={idx}
+                  className={`border ${rowTheme.cardBorder} ${rowTheme.cardAccentBorder} ${rowTheme.cardBg} p-3 space-y-1`}
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="font-display uppercase text-lg">{row.day}</span>
+                    <span className={`font-mono text-xs font-bold ${rowTheme.textAccent}`}>{row.time}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-ink/90">
+                    <span className="font-medium">{row.label}</span>
+                    <span className={`font-mono text-[10px] uppercase font-bold px-2 py-0.5 border ${rowTheme.badgeSolid}`}>
+                      {row.group === "ALL" ? "All Groups" : row.group}
+                    </span>
+                  </div>
+                  {row.note && (
+                    <p className="mt-1 rounded bg-amber-100 border border-amber-300 px-2.5 py-1 font-mono text-xs text-amber-950 font-semibold">
+                      ⚠ Schedule Notice: {row.note}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
 
@@ -223,6 +232,19 @@ export default async function PortalPage() {
           <p className="pt-1 text-xs text-ink/50">Online billing is coming — cards will be managed right here.</p>
         </div>
       </section>
+
+      {/* Account Security — Password Update */}
+      <section className="mt-6 border border-line bg-white p-6 space-y-3">
+        <div>
+          <p className="eyebrow text-flow">Account Security</p>
+          <h2 className="font-display uppercase text-2xl mt-1">Change Portal Password</h2>
+          <p className="text-xs text-ink/60">
+            Updating your password will automatically sign out any other active sessions on other devices.
+          </p>
+        </div>
+        <PasswordChangeForm />
+      </section>
     </div>
   );
 }
+

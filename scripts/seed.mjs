@@ -78,41 +78,8 @@ for (const [email, name] of admins) {
   insertUser.run(randomUUID(), email, hash("mat-admin-1"), name, "ADMIN", "BLACK", 0, now(), now(), "ACTIVE");
 }
 
-const students = [
-  ["maya@demo.test", "Maya R.", "BLUE", 2, "ACTIVE", 210],
-  ["jordan@demo.test", "Jordan P.", "WHITE", 3, "ACTIVE", 120],
-  ["sam@demo.test", "Sam K.", "PURPLE", 1, "ACTIVE", 800],
-  ["riley@demo.test", "Riley T.", "WHITE", 0, "TRIAL", 6],
-];
-const insertAttendance = db.prepare("INSERT INTO attendance (id,userId,date,classLabel) VALUES (?,?,?,?)");
-const insertComp = db.prepare("INSERT INTO competitions (id,userId,name,date,division,result) VALUES (?,?,?,?,?,?)");
-const byEmail = db.prepare("SELECT * FROM users WHERE email = ?");
-const labels = ["Fundamentals + Rolling", "All Levels Gi", "No-Gi + Open Mat"];
-
-for (const [email, name, belt, stripes, sub, joinedDays] of students) {
-  const exists = byEmail.get(email);
-  if (exists) continue;
-  const id = randomUUID();
-  insertUser.run(id, email, hash("osss"), name, "STUDENT", belt, stripes, daysAgo(Math.min(joinedDays, 90)), daysAgo(joinedDays), sub);
-  for (let w = 0; w < 6; w++) {
-    for (let s = 0; s < 3; s++) {
-      if (Math.random() < 0.72) {
-        insertAttendance.run(randomUUID(), id, daysAgo(w * 7 + s * 2 + 1), labels[s]);
-      }
-    }
-  }
-}
-
-const maya = byEmail.get("maya@demo.test");
-const sam = byEmail.get("sam@demo.test");
-const compCount = db.prepare("SELECT COUNT(*) c FROM competitions").get().c;
-if (compCount === 0) {
-  if (maya) insertComp.run(randomUUID(), maya.id, "Sacramento Open", daysAgo(60), "Adult Blue / Feather", "Silver");
-  if (sam) {
-    insertComp.run(randomUUID(), sam.id, "IBJJF Sacramento", daysAgo(150), "Adult Purple / Light", "Gold");
-    insertComp.run(randomUUID(), sam.id, "Grappling Industries NorCal", daysAgo(30), "No-Gi Absolute", "Bronze");
-  }
-}
+// Remove any legacy demo/sample students if present
+db.prepare("DELETE FROM users WHERE email LIKE '%@demo.test'").run();
 
 // --- Gallery ---
 const galleryCount = db.prepare("SELECT COUNT(*) c FROM gallery").get().c;
@@ -135,6 +102,5 @@ if (galleryCount === 0) {
   photos.forEach(([src, caption], i) => insertImg.run(randomUUID(), src, caption, i, now()));
 }
 
-console.log("Seed complete.");
-console.log("Admin login:   sean@imaginejj.test / mat-admin-1");
-console.log("Student login: maya@demo.test / osss");
+console.log("Seed complete. Sample students removed.");
+

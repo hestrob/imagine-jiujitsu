@@ -578,7 +578,7 @@ export function OnboardingForm({
           {!isAdminMode && (
             <div>
               <label className="label" htmlFor="password">
-                Create Portal Password (Optional)
+                Create Portal Password *
               </label>
               <input
                 id="password"
@@ -586,8 +586,10 @@ export function OnboardingForm({
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="6+ characters (defaults to: osss)"
-                minLength={6}
+                placeholder="At least 8 characters"
+                minLength={8}
+                autoComplete="new-password"
+                required
                 className="field"
               />
               <p className="mt-1 font-mono text-[10px] text-ink/50">

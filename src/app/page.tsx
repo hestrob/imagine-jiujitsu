@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSettings, parseSchedule } from "@/lib/settings";
+import { ScheduleCalendar } from "@/components/ScheduleCalendar";
 
 export default async function HomePage() {
   const s = await getSettings();
@@ -8,6 +9,7 @@ export default async function HomePage() {
   const programs = [
     {
       group: "Kids (5–6)",
+      badgeClass: "bg-amber-500 text-white border-amber-400",
       title: "Little Grapplers",
       subtitle: "Balance · Coordination · Confidence",
       desc: "Structured mat games, fundamental movement, safe falling, and age-appropriate self defense in an encouraging environment.",
@@ -16,6 +18,7 @@ export default async function HomePage() {
     },
     {
       group: "Juniors (7–12)",
+      badgeClass: "bg-purple-600 text-white border-purple-400",
       title: "Youth Gi & No-Gi",
       subtitle: "Technique · Discipline · Anti-Bullying",
       desc: "Real Brazilian Jiu Jitsu fundamentals, positional control, and live drilling that build resilience on and off the mat.",
@@ -24,6 +27,7 @@ export default async function HomePage() {
     },
     {
       group: "Adults (13+)",
+      badgeClass: "bg-blue-600 text-white border-blue-400",
       title: "Adults Gi, No-Gi & Open Mat",
       subtitle: "Self Defense · Pressure · Community",
       desc: "Traditional roots meet modern Brazilian Jiu Jitsu pressure. Fundamentals, all-levels Gi, Friday No-Gi, and Sunday Dawn Patrol.",
@@ -93,10 +97,16 @@ export default async function HomePage() {
                 Book a Free First Class →
               </Link>
               <Link
+                href="/join"
+                className="btn-blue !bg-flow hover:!bg-white hover:!text-ink"
+              >
+                Student &amp; Family Onboarding →
+              </Link>
+              <Link
                 href="/pricing"
                 className="btn-ghost !border-mat/40 !text-mat hover:!bg-mat hover:!text-ink"
               >
-                $60/mo · Unlimited Training
+                $60/mo · Unlimited
               </Link>
             </div>
 
@@ -138,7 +148,7 @@ export default async function HomePage() {
                 </div>
               </div>
 
-              {/* Secondary Secondary Photos Row */}
+              {/* Secondary Photos Row */}
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="overflow-hidden border border-white/15 bg-ink shadow-md">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -172,45 +182,55 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Live Weekly Schedule Strip */}
-      <section className="border-b border-line bg-white shadow-sm">
-        <div className="mx-auto max-w-6xl px-4 py-8">
-          <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-4">
+      {/* Prominent Student & Family Onboarding Callout Bar */}
+      <section className="border-b-2 border-ink bg-white">
+        <div className="mx-auto max-w-6xl px-4 py-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-l-4 border-l-flow bg-mat/60 p-5">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="bg-flow text-white font-mono text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5">
+                  New &amp; Existing Students
+                </span>
+                <span className="font-mono text-xs uppercase tracking-wider text-ink/60">
+                  Takes 60 Seconds · Supports Multiple Family Members
+                </span>
+              </div>
+              <h2 className="font-display uppercase text-2xl sm:text-3xl text-ink">
+                Student &amp; Family Onboarding Portal
+              </h2>
+              <p className="text-sm text-ink/75 max-w-2xl">
+                Joining for your first week or already training on the mat? Complete your student or family profile to register your Date of Birth for birthday belt promotions, current rank, and SMS schedule alerts.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
+              <Link href="/join" className="btn-blue !py-3 !px-6 text-xs">
+                Complete Student Onboarding →
+              </Link>
+              <Link href="/login" className="btn-ghost !py-3 !px-5 text-xs">
+                Member Sign In
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Live Weekly Schedule Calendar Section */}
+      <section className="border-b border-line bg-mat/40 py-14">
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
             <div>
-              <p className="eyebrow text-crimson font-bold">Weekly Training Times</p>
-              <h2 className="display-tight mt-1 text-3xl">The Week on the Mat</h2>
+              <p className="eyebrow text-crimson font-bold">Weekly Training Calendar</p>
+              <h2 className="display-tight mt-1 text-4xl sm:text-5xl">The Week on the Mat</h2>
+              <p className="mt-2 text-sm text-ink/70 max-w-xl">
+                Color-coded by age group so you can spot your class at a glance. Click any group below to filter the calendar.
+              </p>
             </div>
             <Link href="/schedule" className="font-mono text-xs uppercase tracking-widest font-bold text-flow hover:text-crimson transition-colors">
-              View Full Schedule &amp; Group Details →
+              Open Full Schedule Page →
             </Link>
           </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {schedule.map((row, idx) => (
-              <div
-                key={row.day + row.time + idx}
-                className="flex flex-col justify-between border border-line bg-mat/40 p-4 hover:border-ink/40 hover:bg-white transition-all"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-mono text-xs uppercase tracking-widest font-bold text-crimson">
-                      {row.day}
-                    </p>
-                    <span className="border border-line bg-white px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink/70">
-                      {!row.group || row.group === "ALL" ? "All Groups" : row.group}
-                    </span>
-                  </div>
-                  <p className="font-display uppercase text-xl mt-1 text-ink">{row.time}</p>
-                  <p className="text-sm font-medium text-ink/80 mt-0.5">{row.label}</p>
-                </div>
-                {row.note && (
-                  <p className="mt-2 inline-block rounded bg-amber-100 border border-amber-300 px-2 py-0.5 font-mono text-[10px] font-semibold text-amber-950">
-                    ⚠ {row.note}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
+          <ScheduleCalendar schedule={schedule} compact />
         </div>
       </section>
 
@@ -240,7 +260,7 @@ export default async function HomePage() {
                   alt={prog.title}
                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
-                <span className="absolute top-3 left-3 bg-ink/90 text-white border border-white/15 px-3 py-1 font-mono text-[11px] uppercase tracking-widest font-bold">
+                <span className={`absolute top-3 left-3 border px-3 py-1 font-mono text-[11px] uppercase tracking-widest font-bold shadow-sm ${prog.badgeClass}`}>
                   {prog.group}
                 </span>
               </div>
@@ -459,7 +479,7 @@ export default async function HomePage() {
                 Claim Your Free Class
               </Link>
               <Link href="/join" className="btn-ghost !border-mat/40 !text-mat hover:!bg-mat hover:!text-ink text-center">
-                Create Student Account
+                Student &amp; Family Onboarding →
               </Link>
             </div>
           </div>

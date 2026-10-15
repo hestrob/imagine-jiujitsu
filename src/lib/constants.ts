@@ -51,6 +51,85 @@ export function parseSchedule(raw: string | undefined): ScheduleRow[] {
     });
 }
 
+export type GroupTheme = {
+  id: string;
+  label: string;
+  shortLabel: string;
+  dot: string;
+  bar: string;
+  badgeSolid: string;
+  badgeSoft: string;
+  cardBg: string;
+  cardBorder: string;
+  cardAccentBorder: string;
+  textAccent: string;
+  filterActive: string;
+};
+
+export const GROUP_THEMES: Record<string, GroupTheme> = {
+  "Kids (5-6)": {
+    id: "Kids (5-6)",
+    label: "Kids (5–6)",
+    shortLabel: "Kids 5–6",
+    dot: "bg-amber-500",
+    bar: "bg-amber-500",
+    badgeSolid: "bg-amber-500 text-white border-amber-600",
+    badgeSoft: "bg-amber-100 text-amber-950 border-amber-300",
+    cardBg: "bg-amber-50/70 hover:bg-amber-50",
+    cardBorder: "border-amber-300",
+    cardAccentBorder: "border-l-4 border-l-amber-500",
+    textAccent: "text-amber-800",
+    filterActive: "bg-amber-500 text-white border-amber-600 shadow-sm",
+  },
+  "Juniors (7-12)": {
+    id: "Juniors (7-12)",
+    label: "Juniors (7–12)",
+    shortLabel: "Juniors 7–12",
+    dot: "bg-purple-600",
+    bar: "bg-purple-600",
+    badgeSolid: "bg-purple-600 text-white border-purple-700",
+    badgeSoft: "bg-purple-100 text-purple-950 border-purple-300",
+    cardBg: "bg-purple-50/70 hover:bg-purple-50",
+    cardBorder: "border-purple-300",
+    cardAccentBorder: "border-l-4 border-l-purple-600",
+    textAccent: "text-purple-800",
+    filterActive: "bg-purple-600 text-white border-purple-700 shadow-sm",
+  },
+  "Adults (13+)": {
+    id: "Adults (13+)",
+    label: "Adults (13+)",
+    shortLabel: "Adults 13+",
+    dot: "bg-blue-600",
+    bar: "bg-blue-600",
+    badgeSolid: "bg-blue-600 text-white border-blue-700",
+    badgeSoft: "bg-blue-100 text-blue-950 border-blue-300",
+    cardBg: "bg-blue-50/70 hover:bg-blue-50",
+    cardBorder: "border-blue-300",
+    cardAccentBorder: "border-l-4 border-l-blue-600",
+    textAccent: "text-blue-800",
+    filterActive: "bg-blue-600 text-white border-blue-700 shadow-sm",
+  },
+  ALL: {
+    id: "ALL",
+    label: "All Groups / Open Mat",
+    shortLabel: "All Groups",
+    dot: "bg-emerald-600",
+    bar: "bg-emerald-600",
+    badgeSolid: "bg-emerald-600 text-white border-emerald-700",
+    badgeSoft: "bg-emerald-100 text-emerald-950 border-emerald-300",
+    cardBg: "bg-emerald-50/70 hover:bg-emerald-50",
+    cardBorder: "border-emerald-300",
+    cardAccentBorder: "border-l-4 border-l-emerald-600",
+    textAccent: "text-emerald-800",
+    filterActive: "bg-emerald-600 text-white border-emerald-700 shadow-sm",
+  },
+};
+
+export function getGroupTheme(group: string | undefined): GroupTheme {
+  if (!group || group === "ALL") return GROUP_THEMES.ALL;
+  return GROUP_THEMES[group] || GROUP_THEMES.ALL;
+}
+
 export function serializeSchedule(rows: ScheduleRow[]): string {
   return rows
     .map(
@@ -59,5 +138,6 @@ export function serializeSchedule(rows: ScheduleRow[]): string {
     )
     .join("\n");
 }
+
 
 
