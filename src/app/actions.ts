@@ -246,16 +246,24 @@ export async function sendBroadcast(_prev: { ok?: boolean; error?: string; count
   const channel = String(formData.get("channel") || "ALL");
   const title = String(formData.get("title") || "").trim();
   const message = String(formData.get("message") || "").trim();
+  const isScheduleChange = formData.get("isScheduleChange") === "true";
+  const selectedIdsRaw = String(formData.get("selectedMemberIds") || "").trim();
 
   if (!title || !message) {
     return { error: "Title and message content are required." };
   }
 
-  const recipients = Users.byGroup(targetGroup);
+  let recipients = Users.byGroup(targetGroup);
+  if (selectedIdsRaw) {
+    const idSet = new Set(selectedIdsRaw.split(",").map((id) => id.trim()).filter(Boolean));
+    if (idSet.size > 0) {
+      recipients = recipients.filter((r) => idSet.has(r.id));
+    }
+  }
   const recipientCount = recipients.length;
 
   if (recipientCount === 0) {
-    return { error: `No active members found in group "${targetGroup}".` };
+    return { error: `No members selected in group "${targetGroup}".` };
   }
 
   // 1. Send via Resend (Email) if configured
@@ -310,15 +318,133 @@ export async function sendBroadcast(_prev: { ok?: boolean; error?: string; count
     }
   }
 
-  // 3. Log broadcast history
+  // 3. Log broadcast history (also visible in-app on member portal)
   Broadcasts.create({
     targetGroup,
     channel,
     title,
     message,
     recipientCount,
+    recipientNames: recipients.map((r) => r.name),
+    isScheduleChange,
   });
 
   revalidatePath("/admin/broadcast");
+  revalidatePath("/admin/schedule");
+  revalidatePath("/portal");
   return { ok: true, count: recipientCount };
 }
+
+// ---------- Admin: schedule & group members console ----------
+
+export async function saveScheduleConsole(
+  _prev: { ok?: boolean; notifiedCount?: number; message?: string; error?: string } | undefined,
+  formData: FormData
+) {
+  await requireAdmin();
+  const scheduleRaw = String(formData.get("schedule") || "").trim();
+  const notifyMembers = formData.get("notifyMembers") === "true";
+
+  Settings.set("schedule", scheduleRaw);
+
+  let notifiedCount = 0;
+  if (notifyMembers) {
+    const targetGroup = String(formData.get("targetGroup") || "ALL");
+    const channel = String(formData.get("channel") || "ALL");
+    const title = String(formData.get("title") || "Schedule Update").trim();
+    const message = String(formData.get("message") || "").trim();
+    const selectedIdsRaw = String(formData.get("selectedMemberIds") || "").trim();
+
+    if (!message) {
+      revalidatePath("/", "layout");
+      return { error: "Schedule saved, but please enter a message to notify group members." };
+    }
+
+    let recipients = Users.byGroup(targetGroup);
+    if (selectedIdsRaw) {
+      const idSet = new Set(selectedIdsRaw.split(",").map((id) => id.trim()).filter(Boolean));
+      recipients = recipients.filter((r) => idSet.has(r.id));
+    }
+    notifiedCount = recipients.length;
+
+    if (notifiedCount > 0) {
+      // Send via Resend (Email) if configured
+      if ((channel === "EMAIL" || channel === "ALL") && process.env.RESEND_API_KEY) {
+        const emails = recipients.map((r) => r.email).filter(Boolean);
+        if (emails.length > 0) {
+          try {
+            await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                from: "Imagine Jiu Jitsu <alerts@imaginejiujitsu.com>",
+                to: emails,
+                subject: `[Imagine JJ Schedule] ${title}`,
+                text: message,
+              }),
+            });
+          } catch (err) {
+            console.error("Resend schedule alert error:", err);
+          }
+        }
+      }
+
+      // Send via Twilio (SMS) if configured
+      if ((channel === "SMS" || channel === "ALL") && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+        const phones = recipients.map((r) => r.phone).filter(Boolean);
+        const sid = process.env.TWILIO_ACCOUNT_SID;
+        const auth = Buffer.from(`${sid}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64");
+        for (const phone of phones) {
+          try {
+            const cleanPhone = phone.replace(/[^0-9+]/g, "");
+            if (!cleanPhone) continue;
+            const bodyParams = new URLSearchParams({
+              To: cleanPhone.startsWith("+") ? cleanPhone : `+1${cleanPhone}`,
+              From: process.env.TWILIO_FROM_PHONE || "",
+              Body: `[Imagine Jiu Jitsu] ${title}: ${message}`,
+            });
+            await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+              method: "POST",
+              headers: {
+                Authorization: `Basic ${auth}`,
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              body: bodyParams.toString(),
+            });
+          } catch (err) {
+            console.error("Twilio SMS schedule alert error:", err);
+          }
+        }
+      }
+
+      Broadcasts.create({
+        targetGroup,
+        channel,
+        title,
+        message,
+        recipientCount: notifiedCount,
+        recipientNames: recipients.map((r) => r.name),
+        isScheduleChange: true,
+      });
+    }
+  }
+
+  revalidatePath("/", "layout");
+  revalidatePath("/schedule");
+  revalidatePath("/portal");
+  revalidatePath("/admin/schedule");
+  revalidatePath("/admin/broadcast");
+  revalidatePath("/admin/settings");
+
+  return {
+    ok: true,
+    notifiedCount,
+    message: notifyMembers
+      ? `Schedule updated and notification sent to ${notifiedCount} member${notifiedCount === 1 ? "" : "s"} in the app!`
+      : "Schedule updated across the site and member portal!",
+  };
+}
+

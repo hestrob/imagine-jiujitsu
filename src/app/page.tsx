@@ -34,12 +34,22 @@ export default async function HomePage() {
 
       {/* Schedule strip */}
       <section className="border-b border-line bg-white">
-        <div className="mx-auto grid max-w-6xl gap-px px-4 py-6 md:grid-cols-4">
-          {schedule.map((row) => (
-            <div key={row.day + row.time} className="py-3 md:px-4 md:border-l first:border-l-0 border-line">
-              <p className="font-mono text-xs uppercase tracking-widest text-flow">{row.day}</p>
-              <p className="font-display uppercase text-xl">{row.time}</p>
+        <div className="mx-auto grid max-w-6xl gap-px px-4 py-6 sm:grid-cols-2 md:grid-cols-4">
+          {schedule.map((row, idx) => (
+            <div key={row.day + row.time + idx} className="py-3 md:px-4 md:border-l first:border-l-0 border-line">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-mono text-xs uppercase tracking-widest text-flow">{row.day}</p>
+                <span className="font-mono text-[10px] uppercase tracking-wider text-ink/50">
+                  {!row.group || row.group === "ALL" ? "All" : row.group}
+                </span>
+              </div>
+              <p className="font-display uppercase text-xl mt-0.5">{row.time}</p>
               <p className="text-sm text-ink/70">{row.label}</p>
+              {row.note && (
+                <p className="mt-1 inline-block rounded bg-amber-100 border border-amber-300 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-950">
+                  ⚠ {row.note}
+                </p>
+              )}
             </div>
           ))}
         </div>

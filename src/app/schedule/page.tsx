@@ -12,11 +12,23 @@ export default async function SchedulePage() {
       <h1 className="display-tight mt-3 text-6xl">The week on the mat</h1>
       <div className="belt-line mt-6 max-w-sm" aria-hidden />
       <div className="mt-10 divide-y divide-line border border-line bg-white">
-        {schedule.map((row) => (
-          <div key={row.day + row.time} className="grid gap-1 px-6 py-5 md:grid-cols-3 md:items-center">
-            <p className="font-display uppercase text-2xl">{row.day}</p>
+        {schedule.map((row, idx) => (
+          <div key={row.day + row.time + idx} className="grid gap-2 px-6 py-5 md:grid-cols-3 md:items-center">
+            <div>
+              <p className="font-display uppercase text-2xl">{row.day}</p>
+              <span className="inline-block mt-1 font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-line bg-neutral-50 text-ink/70">
+                {!row.group || row.group === "ALL" ? "All Groups" : row.group}
+              </span>
+            </div>
             <p className="font-mono text-sm tracking-wide text-flow">{row.time}</p>
-            <p className="text-ink/75">{row.label}</p>
+            <div className="space-y-1">
+              <p className="text-ink/85 font-medium">{row.label}</p>
+              {row.note && (
+                <p className="inline-block rounded bg-amber-100 border border-amber-300 px-2 py-0.5 font-mono text-[11px] font-semibold text-amber-950">
+                  ⚠ {row.note}
+                </p>
+              )}
+            </div>
           </div>
         ))}
       </div>

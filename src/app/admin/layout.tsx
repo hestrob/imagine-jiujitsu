@@ -8,9 +8,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (user.role !== "ADMIN") redirect("/portal");
   const tabs = [
     ["/admin", "Overview"],
-    ["/admin/attendance", "Attendance"],
+    ["/admin/schedule", "Schedule Console"],
     ["/admin/roster", "Roster & Groups"],
     ["/admin/broadcast", "Broadcast & Alerts"],
+    ["/admin/attendance", "Attendance"],
     ["/admin/gallery", "Gallery"],
     ["/admin/inquiries", "Inquiries"],
     ["/admin/settings", "Settings"],

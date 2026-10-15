@@ -196,10 +196,13 @@ function getStore(): GlobalDataStore {
     coachBio:
       "Coach Sean leads every class at Imagine with the same philosophy: a clean, welcoming space where anyone can train hard and grow. Traditional roots, Brazilian Jiu Jitsu pressure, and a community that shows up for each other.",
     schedule: [
-      "Monday|6:00 – 7:30 PM|Fundamentals + Rolling",
-      "Wednesday|5:00 – 7:30 PM|All Levels Gi",
-      "Friday|5:00 – 7:30 PM|No-Gi + Open Mat",
-      "Sunday|6:30 – 9:00 AM|Dawn Patrol Open Mat",
+      "Monday|6:00 – 7:30 PM|Fundamentals + Rolling|Adults|",
+      "Tuesday|4:30 – 5:30 PM|Kids Fundamentals & Games|Kids|",
+      "Wednesday|5:00 – 7:30 PM|All Levels Gi|Adults|",
+      "Thursday|4:30 – 5:30 PM|Kids Gi & Self Defense|Kids|",
+      "Friday|5:00 – 7:30 PM|No-Gi + Open Mat|ALL|",
+      "Saturday|9:00 – 11:00 AM|Competition Sparring & Rounds|Competition Team|",
+      "Sunday|6:30 – 9:00 AM|Dawn Patrol Open Mat|ALL|",
     ].join("\n"),
   };
 
@@ -211,6 +214,8 @@ function getStore(): GlobalDataStore {
       title: "Holiday Open Mat Schedule",
       message: "Hey team! Open Mat is moved to 8:00 AM this upcoming Monday. All belts and groups welcome!",
       recipientCount: 6,
+      recipientNames: ["Maya R.", "Jordan P.", "Sam K.", "Riley T.", "Leo M.", "Elena V."],
+      isScheduleChange: true,
       sentAt: daysAgo(3),
     },
     {
@@ -220,6 +225,8 @@ function getStore(): GlobalDataStore {
       title: "Saturday Competition Sparring",
       message: "Competition team: weigh-in drills and high-intensity rounds start at 9:00 AM sharp tomorrow.",
       recipientCount: 2,
+      recipientNames: ["Sam K.", "Elena V."],
+      isScheduleChange: true,
       sentAt: daysAgo(5),
     },
   ];
@@ -395,7 +402,19 @@ export const Inquiries = {
 // ---------- Broadcasts / Notifications ----------
 export const Broadcasts = {
   all: () => store.broadcasts.slice().sort((a, b) => b.sentAt.localeCompare(a.sentAt)),
-  create(data: { targetGroup: string; channel: string; title: string; message: string; recipientCount: number }) {
+  forGroup: (group: string) =>
+    store.broadcasts
+      .filter((b) => b.targetGroup === "ALL" || b.targetGroup === group)
+      .sort((a, b) => b.sentAt.localeCompare(a.sentAt)),
+  create(data: {
+    targetGroup: string;
+    channel: string;
+    title: string;
+    message: string;
+    recipientCount: number;
+    recipientNames?: string[];
+    isScheduleChange?: boolean;
+  }) {
     const row: BroadcastRow = {
       id: uid(),
       targetGroup: data.targetGroup,
@@ -403,6 +422,8 @@ export const Broadcasts = {
       title: data.title,
       message: data.message,
       recipientCount: data.recipientCount,
+      recipientNames: data.recipientNames,
+      isScheduleChange: data.isScheduleChange,
       sentAt: nowIso(),
     };
     store.broadcasts.push(row);

@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
-import { AttendanceRepo, Competitions } from "@/lib/db";
+import { AttendanceRepo, Broadcasts, Competitions } from "@/lib/db";
 import { BELT_COLORS, BELT_LABELS, BELT_ORDER, nextBelt } from "@/lib/belts";
+import { getSettings, parseSchedule } from "@/lib/settings";
 import { BeltBadge } from "@/components/BeltBadge";
 
 export const metadata = { title: "My Mat — Imagine Jiu Jitsu" };
@@ -24,6 +25,13 @@ export default async function PortalPage() {
 
   const attendance = AttendanceRepo.forUser(user.id);
   const competitions = Competitions.forUser(user.id);
+  const settings = await getSettings();
+  const fullSchedule = parseSchedule(settings.schedule);
+  const userGroup = user.group || "Adults";
+  const mySchedule = fullSchedule.filter(
+    (r) => !r.group || r.group === "ALL" || r.group === userGroup
+  );
+  const groupAlerts = Broadcasts.forGroup(userGroup);
 
   const now = new Date();
   const thisMonth = attendance.filter(
@@ -35,12 +43,74 @@ export default async function PortalPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12">
-      <p className="eyebrow text-flow">My mat</p>
+      <p className="eyebrow text-flow">My mat · {userGroup}</p>
       <h1 className="display-tight mt-2 text-5xl">{user.name}</h1>
-      <div className="mt-3"><BeltBadge belt={user.belt} stripes={user.stripes} /></div>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <BeltBadge belt={user.belt} stripes={user.stripes} />
+        <span className="border border-line bg-white px-2.5 py-1 font-mono text-xs uppercase tracking-wider text-ink/80">
+          Group: <strong>{userGroup}</strong>
+        </span>
+      </div>
+
+      {/* Group Schedule & Schedule Change Alerts */}
+      <section className="mt-8 grid gap-6 md:grid-cols-2">
+        <div className="border border-line bg-white p-6">
+          <div className="flex items-center justify-between">
+            <p className="eyebrow text-flow">My Group Schedule ({userGroup})</p>
+            <span className="font-mono text-[10px] uppercase tracking-widest text-ink/40">
+              {mySchedule.length} weekly classes
+            </span>
+          </div>
+          <ul className="mt-4 divide-y divide-line">
+            {mySchedule.map((row, idx) => (
+              <li key={idx} className="py-3 first:pt-0 last:pb-0 space-y-1">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="font-display uppercase text-lg">{row.day}</span>
+                  <span className="font-mono text-xs text-flow font-semibold">{row.time}</span>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-ink/80">
+                  <span>{row.label}</span>
+                  <span className="font-mono text-[10px] uppercase text-ink/50 bg-neutral-100 px-1.5 py-0.5 rounded">
+                    {row.group === "ALL" ? "All Groups" : row.group}
+                  </span>
+                </div>
+                {row.note && (
+                  <p className="mt-1 rounded bg-amber-100 border border-amber-300 px-2.5 py-1 font-mono text-xs text-amber-950 font-semibold">
+                    ⚠ Schedule Notice: {row.note}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="border border-line bg-white p-6">
+          <p className="eyebrow text-flow">Schedule Changes &amp; Group Alerts</p>
+          {groupAlerts.length === 0 ? (
+            <p className="mt-4 text-sm text-ink/60">No recent schedule alerts for your group.</p>
+          ) : (
+            <ul className="mt-4 divide-y divide-line max-h-72 overflow-y-auto pr-1">
+              {groupAlerts.slice(0, 6).map((alert) => (
+                <li key={alert.id} className="py-3 first:pt-0 last:pb-0 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-sm text-ink">{alert.title}</span>
+                    <span className="font-mono text-[10px] text-ink/40 shrink-0">
+                      {new Date(alert.sentAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-ink/75">{alert.message}</p>
+                  <span className="inline-block font-mono text-[10px] uppercase tracking-wider text-flow">
+                    {alert.targetGroup === "ALL" ? "All Academy Members" : `${alert.targetGroup} Group`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
 
       {/* Belt path */}
-      <section className="mt-10 border border-line bg-white p-6">
+      <section className="mt-6 border border-line bg-white p-6">
         <p className="eyebrow text-ink/50">The path</p>
         <div className="mt-4 flex items-center gap-1">
           {BELT_ORDER.map((b, i) => (
