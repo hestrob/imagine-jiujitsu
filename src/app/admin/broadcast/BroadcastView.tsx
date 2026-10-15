@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useFormState, useFormStatus } from "react-dom";
-import { sendBroadcast } from "@/app/actions";
+import {
+  sendBroadcast,
+  claimTwilioNumberAction,
+  sendTestSmsAction,
+} from "@/app/actions";
 import { GROUPS, type BroadcastRow } from "@/lib/constants";
+import type { TwilioAccountStatus } from "@/lib/twilio";
 
 type StudentData = {
   id: string;
@@ -32,9 +37,11 @@ function SubmitButton({ recipientCount }: { recipientCount: number }) {
 export function BroadcastView({
   students,
   history,
+  twilioStatus,
 }: {
   students: StudentData[];
   history: BroadcastRow[];
+  twilioStatus: TwilioAccountStatus;
 }) {
   const [selectedGroup, setSelectedGroup] = useState<string>("ALL");
   const [channel, setChannel] = useState<string>("ALL");
@@ -42,6 +49,20 @@ export function BroadcastView({
   const [message, setMessage] = useState<string>("");
 
   const [state, formAction] = useFormState(sendBroadcast, undefined);
+  const [testSmsState, testSmsAction] = useFormState(sendTestSmsAction, undefined);
+  const [claimPending, startClaimTransition] = useTransition();
+  const [claimResult, setClaimResult] = useState<{
+    ok?: boolean;
+    phoneNumber?: string;
+    error?: string;
+  } | null>(null);
+
+  const handleClaimWoodlandNumber = () => {
+    startClaimTransition(async () => {
+      const res = await claimTwilioNumberAction();
+      setClaimResult(res);
+    });
+  };
 
   const recipients = students.filter(
     (s) => selectedGroup === "ALL" || s.group === selectedGroup
@@ -88,6 +109,8 @@ export function BroadcastView({
     setMessage(t.message);
   };
 
+  const activeFromPhone = claimResult?.phoneNumber || twilioStatus.fromPhone;
+
   return (
     <div className="space-y-8">
       {/* Title */}
@@ -98,12 +121,165 @@ export function BroadcastView({
         </p>
       </div>
 
-      {state?.ok && (
-        <div className="border-2 border-emerald-500 bg-emerald-50 p-4 text-emerald-900">
-          <p className="font-display uppercase text-lg">Alert Broadcasted Successfully!</p>
-          <p className="text-sm mt-1">
-            Sent to {state.count} recipients. Broadcast has been logged in history.
+      {/* Twilio Live Integration Card */}
+      <div className="border-2 border-ink bg-white p-5 space-y-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
+          <div className="flex items-center gap-3">
+            <span
+              className={`inline-block h-3 w-3 rounded-full ${
+                twilioStatus.connected ? "bg-emerald-500" : "bg-amber-500"
+              }`}
+            />
+            <div>
+              <p className="font-display uppercase text-lg">
+                Twilio SMS Integration{" "}
+                {twilioStatus.connected
+                  ? `— Connected (${twilioStatus.accountType || "Active"} Account)`
+                  : "— Needs Attention"}
+              </p>
+              <p className="font-mono text-xs text-ink/60">
+                Account SID: {twilioStatus.accountSidMasked || "Not configured"}
+                {twilioStatus.accountName ? ` · ${twilioStatus.accountName}` : ""}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {activeFromPhone ? (
+              <span className="border border-emerald-600 bg-emerald-50 px-3 py-1 font-mono text-xs font-semibold text-emerald-900">
+                Sender Number: {activeFromPhone}
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleClaimWoodlandNumber}
+                disabled={claimPending}
+                className="btn !py-2 !px-4 text-xs"
+              >
+                {claimPending
+                  ? "Claiming (530) Trial Number…"
+                  : "Claim Free (530) Woodland Trial Number"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {!activeFromPhone && (
+          <div className="border border-amber-300 bg-amber-50/70 p-3.5 text-xs text-amber-950 space-y-1.5">
+            <p className="font-semibold font-mono uppercase tracking-wider">
+              ⚡ One Quick Step Left in Twilio Trial Setup:
+            </p>
+            <p>
+              Your Twilio Account SID &amp; Auth Token are connected and verified! Before Twilio allows sending SMS from a Trial account, you must:
+            </p>
+            <ol className="list-decimal list-inside space-y-1 pl-1">
+              <li>
+                Verify your personal cell number under{" "}
+                <a
+                  href="https://console.twilio.com/us1/develop/phone-numbers/manage/verified"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline font-semibold text-flow"
+                >
+                  Twilio Console → Phone Numbers → Verified Caller IDs
+                </a>{" "}
+                (Twilio Trial accounts can only text verified phone numbers).
+              </li>
+              <li>
+                Click <strong>&ldquo;Get a trial phone number&rdquo;</strong> on your{" "}
+                <a
+                  href="https://console.twilio.com/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline font-semibold text-flow"
+                >
+                  Twilio Console Home
+                </a>{" "}
+                — or click <strong>&ldquo;Claim Free (530) Woodland Trial Number&rdquo;</strong> above right after verifying your phone!
+              </li>
+            </ol>
+          </div>
+        )}
+
+        {claimResult?.ok && (
+          <div className="border border-emerald-500 bg-emerald-50 p-3 text-xs text-emerald-900 font-mono">
+            ✓ Claimed Woodland Twilio Number: <strong>{claimResult.phoneNumber}</strong>! It is now saved as your academy SMS sender.
+          </div>
+        )}
+
+        {claimResult?.error && (
+          <div className="border border-rose-400 bg-rose-50 p-3 text-xs text-rose-900">
+            <strong>Twilio Response:</strong> {claimResult.error}
+          </div>
+        )}
+
+        {/* Quick Test SMS Form */}
+        <form
+          action={testSmsAction}
+          className="grid gap-3 sm:grid-cols-3 items-end pt-1"
+        >
+          <div>
+            <label className="font-mono text-[11px] uppercase tracking-wider text-ink/60">
+              Verified Recipient Phone
+            </label>
+            <input
+              name="toPhone"
+              defaultValue="+19166610125"
+              placeholder="+19166610125"
+              className="field !py-1.5 !text-xs mt-1 font-mono"
+            />
+          </div>
+          <div>
+            <label className="font-mono text-[11px] uppercase tracking-wider text-ink/60">
+              Trial Template / Message
+            </label>
+            <select
+              name="testBody"
+              defaultValue="sms_appointment_reminders"
+              className="field !py-1.5 !text-xs mt-1"
+            >
+              <option value="sms_appointment_reminders">Appointment Reminders</option>
+              <option value="sms_event_notifications">Event Notifications</option>
+              <option value="sms_account_alerts">Account Alerts</option>
+              <option value="sms_order_confirmation">Order Confirmation</option>
+              <option value="sms_customer_support">Customer Support</option>
+              <option value="sms_2fa">2FA Verification</option>
+            </select>
+          </div>
+          <button
+            type="submit"
+            className="border border-ink bg-neutral-900 text-white px-4 py-2 font-mono text-xs uppercase tracking-wider hover:bg-flow transition-colors"
+          >
+            Send Test Text →
+          </button>
+        </form>
+
+        {testSmsState?.ok && (
+          <p className="text-xs font-mono text-emerald-700 font-semibold">
+            ✓ {testSmsState.message}
           </p>
+        )}
+        {testSmsState?.error && (
+          <p className="text-xs font-mono text-rose-700">
+            ⚠ {testSmsState.error}
+          </p>
+        )}
+      </div>
+
+      {state?.ok && (
+        <div className="border-2 border-emerald-500 bg-emerald-50 p-4 text-emerald-900 space-y-1">
+          <p className="font-display uppercase text-lg">Alert Broadcasted Successfully!</p>
+          <p className="text-sm">
+            Sent to {state.count} recipients and logged in the member portal.
+            {typeof state.smsSent === "number" && state.smsSent > 0
+              ? ` (${state.smsSent} Twilio SMS delivered!)`
+              : ""}
+          </p>
+          {state.smsWarning && (
+            <p className="text-xs font-mono text-amber-900 bg-amber-100/80 px-2.5 py-1.5 border border-amber-300 mt-2">
+              Twilio Note: {state.smsWarning}
+            </p>
+          )}
         </div>
       )}
 

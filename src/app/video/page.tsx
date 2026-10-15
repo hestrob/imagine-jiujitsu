@@ -1,15 +1,26 @@
+import Link from "next/link";
 import { getSettings } from "@/lib/settings";
 
-export const metadata = { title: "The Wall — Imagine Jiu Jitsu" };
+export const metadata = { title: "The Wall — Imagine Jiu Jitsu Academy" };
 
 export default async function VideoPage() {
   const s = await getSettings();
   return (
-    <div className="mx-auto max-w-5xl px-4 py-16">
-      <p className="eyebrow text-flow">The wall</p>
-      <h1 className="display-tight mt-3 text-6xl">Watch the room work</h1>
-      <div className="belt-line mt-6 max-w-sm" aria-hidden />
-      <div className="mt-10 border border-ink bg-ink">
+    <div className="mx-auto max-w-6xl px-4 py-16 md:py-20">
+      <div className="flex flex-wrap items-end justify-between gap-6">
+        <div>
+          <p className="eyebrow text-crimson">The Wall · Technique &amp; Highlights</p>
+          <h1 className="display-tight mt-2 text-6xl sm:text-7xl">
+            Watch the room work
+          </h1>
+          <div className="black-belt-bar mt-5 max-w-sm" aria-hidden />
+        </div>
+        <Link href="/contact" className="btn">
+          Train With Us This Week
+        </Link>
+      </div>
+
+      <div className="mt-10 border-2 border-ink bg-ink shadow-editorial-lg">
         <div className="aspect-video">
           {s.videoUrl ? (
             <iframe
@@ -26,8 +37,8 @@ export default async function VideoPage() {
           )}
         </div>
       </div>
-      <p className="mt-4 text-sm text-ink/60">
-        Fresh footage rotates here — technique breakdowns, promotions, and competition highlights.
+      <p className="mt-4 font-mono text-xs uppercase tracking-widest text-ink/60">
+        Fresh footage rotates here — technique breakdowns, belt promotions, and competition highlights.
       </p>
     </div>
   );

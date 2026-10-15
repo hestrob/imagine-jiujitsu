@@ -1,7 +1,16 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { AttendanceRepo, Broadcasts, Competitions } from "@/lib/db";
-import { BELT_COLORS, BELT_LABELS, BELT_ORDER, nextBelt } from "@/lib/belts";
+import {
+  ADULT_BELT_ORDER,
+  BELT_COLORS,
+  BELT_LABELS,
+  type Belt,
+  YOUTH_BELT_ORDER,
+  getBirthdayPromotionInfo,
+  isYouthBelt,
+  nextBelt,
+} from "@/lib/belts";
 import { getSettings, parseSchedule } from "@/lib/settings";
 import { BeltBadge } from "@/components/BeltBadge";
 
@@ -33,13 +42,24 @@ export default async function PortalPage() {
   );
   const groupAlerts = Broadcasts.forGroup(userGroup);
 
+  const bdayInfo = getBirthdayPromotionInfo(user.dob, userGroup, user.belt);
+  const isYouthTrack =
+    isYouthBelt(user.belt) ||
+    userGroup === "Kids (5-6)" ||
+    userGroup === "Juniors (7-12)" ||
+    (bdayInfo !== null && bdayInfo.age < 16);
+
+  const pathBelts: readonly Belt[] = isYouthTrack
+    ? [...YOUTH_BELT_ORDER, "BLUE"]
+    : ADULT_BELT_ORDER;
+
   const now = new Date();
   const thisMonth = attendance.filter(
     (a) => new Date(a.date).getMonth() === now.getMonth() && new Date(a.date).getFullYear() === now.getFullYear()
   ).length;
   const monthsAtRank = monthsBetween(new Date(user.promotedAt), now);
-  const next = nextBelt(user.belt);
-  const beltIndex = BELT_ORDER.indexOf(user.belt as (typeof BELT_ORDER)[number]);
+  const next = nextBelt(user.belt, isYouthTrack);
+  const beltIndex = pathBelts.indexOf(user.belt as Belt);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12">
@@ -50,6 +70,11 @@ export default async function PortalPage() {
         <span className="border border-line bg-white px-2.5 py-1 font-mono text-xs uppercase tracking-wider text-ink/80">
           Group: <strong>{userGroup}</strong>
         </span>
+        {bdayInfo && (
+          <span className="border border-line bg-white px-2.5 py-1 font-mono text-xs uppercase tracking-wider text-ink/70">
+            Age {bdayInfo.age} · 🎂 Next B-Day: {bdayInfo.nextBirthdayFormatted}
+          </span>
+        )}
       </div>
 
       {/* Group Schedule & Schedule Change Alerts */}
@@ -111,24 +136,26 @@ export default async function PortalPage() {
 
       {/* Belt path */}
       <section className="mt-6 border border-line bg-white p-6">
-        <p className="eyebrow text-ink/50">The path</p>
+        <p className="eyebrow text-ink/50">
+          The path {isYouthTrack ? "(Youth → Adult Progression)" : ""}
+        </p>
         <div className="mt-4 flex items-center gap-1">
-          {BELT_ORDER.map((b, i) => (
+          {pathBelts.map((b, i) => (
             <div key={b} className="flex-1">
               <div
                 className={`h-4 border border-ink/30 ${i <= beltIndex ? "" : "opacity-25"}`}
                 style={{ backgroundColor: BELT_COLORS[b] }}
                 title={BELT_LABELS[b]}
               />
-              <p className={`mt-1 font-mono text-[10px] uppercase tracking-widest ${i === beltIndex ? "text-flow" : "text-ink/40"}`}>
+              <p className={`mt-1 font-mono text-[10px] uppercase tracking-widest ${i === beltIndex ? "text-flow font-bold" : "text-ink/40"}`}>
                 {b.toLowerCase()}
               </p>
             </div>
           ))}
         </div>
         <p className="mt-4 text-sm text-ink/70">
-          {monthsAtRank} month{monthsAtRank === 1 ? "" : "s"} at {BELT_LABELS[user.belt].toLowerCase()}
-          {next ? <> — next stop: <span className="font-medium">{BELT_LABELS[next].toLowerCase()}</span>. Keep showing up.</> : " — the belt is just the beginning."}
+          {monthsAtRank} month{monthsAtRank === 1 ? "" : "s"} at {(BELT_LABELS[user.belt] || user.belt).toLowerCase()}
+          {next ? <> — next stop: <span className="font-medium">{(BELT_LABELS[next] || next).toLowerCase()}</span>. Keep showing up.</> : " — the belt is just the beginning."}
         </p>
       </section>
 
@@ -184,11 +211,16 @@ export default async function PortalPage() {
             {attendance.length === 0 && <li className="text-ink/60">First check-in coming soon.</li>}
           </ul>
         </div>
-        <div className="border border-line bg-white p-6">
-          <p className="eyebrow text-ink/50">Membership</p>
-          <p className="mt-3 font-display text-3xl">$60<span className="text-lg">/mo</span></p>
-          <p className="mt-2 text-sm text-ink/70">{SUB_LABELS[user.subscriptionStatus] ?? user.subscriptionStatus}</p>
-          <p className="mt-3 text-xs text-ink/50">Online billing is coming — cards will be managed right here.</p>
+        <div className="border border-line bg-white p-6 space-y-2">
+          <p className="eyebrow text-ink/50">Membership &amp; Billing Contact</p>
+          <p className="mt-2 font-display text-3xl">$60<span className="text-lg">/mo</span></p>
+          <p className="text-sm text-ink/70">{SUB_LABELS[user.subscriptionStatus] ?? user.subscriptionStatus}</p>
+          <div className="pt-2 border-t border-line/60 font-mono text-xs text-ink/60 space-y-1">
+            {user.parentName && <p>Billing / Parent Contact: {user.parentName}</p>}
+            <p>Phone: {user.parentPhone || user.phone || "On file"}</p>
+            <p>Email: {user.parentEmail || user.email}</p>
+          </div>
+          <p className="pt-1 text-xs text-ink/50">Online billing is coming — cards will be managed right here.</p>
         </div>
       </section>
     </div>

@@ -13,6 +13,13 @@ export type UserRow = {
   promotedAt: string;
   joinedAt: string;
   subscriptionStatus: string;
+  dob?: string; // YYYY-MM-DD
+  parentName?: string;
+  parentPhone?: string;
+  parentEmail?: string;
+  medicalNotes?: string;
+  familyId?: string;
+  memberType?: "NEW" | "EXISTING";
 };
 
 export type AttendanceRow = { id: string; userId: string; date: string; classLabel: string };
@@ -52,10 +59,51 @@ const LEGACY_GROUP_MAP: Record<string, string> = {
   Adults: "Adults (13+)",
 };
 
+const DEMO_BACKFILL: Record<string, Partial<UserRow>> = {
+  "maya@demo.test": { dob: "1998-11-04", memberType: "EXISTING" },
+  "jordan@demo.test": { dob: "1994-03-15", memberType: "EXISTING" },
+  "sam@demo.test": {
+    dob: "2013-10-28",
+    belt: "ORANGE",
+    parentName: "David Kim",
+    parentPhone: "(530) 662-4419",
+    parentEmail: "david.kim@demo.test",
+    memberType: "EXISTING",
+  },
+  "riley@demo.test": {
+    dob: "2019-10-22",
+    parentName: "Sarah Taylor",
+    parentPhone: "(530) 405-7730",
+    parentEmail: "sarah.t@demo.test",
+    medicalNotes: "Mild seasonal allergies",
+    memberType: "NEW",
+  },
+  "leo@demo.test": {
+    dob: "2020-05-12",
+    belt: "GREY",
+    parentName: "Carlos Martinez",
+    parentPhone: "(530) 554-1298",
+    parentEmail: "carlos.m@demo.test",
+    memberType: "EXISTING",
+  },
+  "elena@demo.test": {
+    dob: "2010-11-02",
+    belt: "GREEN",
+    parentName: "Maria Vasquez",
+    parentPhone: "(530) 908-3351",
+    parentEmail: "maria.v@demo.test",
+    memberType: "EXISTING",
+  },
+};
+
 function migrateStoreGroups(s: GlobalDataStore) {
   for (const u of s.users) {
     if (LEGACY_GROUP_MAP[u.group]) {
       u.group = LEGACY_GROUP_MAP[u.group];
+    }
+    const backfill = DEMO_BACKFILL[u.email];
+    if (backfill && !u.dob) {
+      Object.assign(u, backfill);
     }
   }
   for (const b of s.broadcasts) {
@@ -78,6 +126,26 @@ function migrateStoreGroups(s: GlobalDataStore) {
       })
       .join("\n");
   }
+  if (s.gallery.some((item) => item.src.startsWith("/photos/placeholder-"))) {
+    s.gallery = getDefaultGallery();
+  }
+}
+
+function getDefaultGallery(): GalleryRow[] {
+  return [
+    { id: uid(), src: "/photos/team-gi.jpg", caption: "Adult Gi Team — Coach Sean & the room on the mat", sortOrder: 0, createdAt: nowIso() },
+    { id: uid(), src: "/photos/team-nogi.jpg", caption: "No-Gi Squad — Friday night pressure & live rounds", sortOrder: 1, createdAt: nowIso() },
+    { id: uid(), src: "/photos/coach-coaching.jpg", caption: "Coach Sean breaking down back-control defense", sortOrder: 2, createdAt: nowIso() },
+    { id: uid(), src: "/photos/kids-lineup.jpg", caption: "Youth & Juniors Gi class — building confidence from day one", sortOrder: 3, createdAt: nowIso() },
+    { id: uid(), src: "/photos/nogi-takedown.jpg", caption: "Standup & takedown entries during No-Gi training", sortOrder: 4, createdAt: nowIso() },
+    { id: uid(), src: "/photos/mat-respect.jpg", caption: "Ego-free culture — slap, bump, and train hard", sortOrder: 5, createdAt: nowIso() },
+    { id: uid(), src: "/photos/kids-warmup.jpg", caption: "Kids & Juniors mat movement, balance, and fundamentals", sortOrder: 6, createdAt: nowIso() },
+    { id: uid(), src: "/photos/nogi-pressure.jpg", caption: "Top pressure & guard passing in live No-Gi rounds", sortOrder: 7, createdAt: nowIso() },
+    { id: uid(), src: "/photos/coach-standing.jpg", caption: "Coach Sean watching live Gi rounds under the lineage wall", sortOrder: 8, createdAt: nowIso() },
+    { id: uid(), src: "/photos/kids-rolling.jpg", caption: "Juniors Gi positional sparring and guard work", sortOrder: 9, createdAt: nowIso() },
+    { id: uid(), src: "/photos/nogi-sub.jpg", caption: "Submission hunting and control in No-Gi", sortOrder: 10, createdAt: nowIso() },
+    { id: uid(), src: "/photos/class-circle.jpg", caption: "Post-class lineup on the Woodland mat", sortOrder: 11, createdAt: nowIso() },
+  ];
 }
 
 function getStore(): GlobalDataStore {
@@ -122,6 +190,8 @@ function getStore(): GlobalDataStore {
       promotedAt: daysAgo(90),
       joinedAt: daysAgo(210),
       subscriptionStatus: "ACTIVE",
+      dob: "1998-11-04",
+      memberType: "EXISTING",
     },
     {
       id: jordanId,
@@ -136,6 +206,8 @@ function getStore(): GlobalDataStore {
       promotedAt: daysAgo(90),
       joinedAt: daysAgo(120),
       subscriptionStatus: "ACTIVE",
+      dob: "1994-03-15",
+      memberType: "EXISTING",
     },
     {
       id: samId,
@@ -145,11 +217,16 @@ function getStore(): GlobalDataStore {
       name: "Sam K.",
       role: "STUDENT",
       group: "Juniors (7-12)",
-      belt: "PURPLE",
+      belt: "ORANGE",
       stripes: 1,
       promotedAt: daysAgo(90),
       joinedAt: daysAgo(800),
       subscriptionStatus: "ACTIVE",
+      dob: "2013-10-28",
+      parentName: "David Kim",
+      parentPhone: "(530) 662-4419",
+      parentEmail: "david.kim@demo.test",
+      memberType: "EXISTING",
     },
     {
       id: rileyId,
@@ -164,6 +241,12 @@ function getStore(): GlobalDataStore {
       promotedAt: daysAgo(6),
       joinedAt: daysAgo(6),
       subscriptionStatus: "TRIAL",
+      dob: "2019-10-22",
+      parentName: "Sarah Taylor",
+      parentPhone: "(530) 405-7730",
+      parentEmail: "sarah.t@demo.test",
+      medicalNotes: "Mild seasonal allergies",
+      memberType: "NEW",
     },
     {
       id: leoId,
@@ -173,11 +256,16 @@ function getStore(): GlobalDataStore {
       name: "Leo M.",
       role: "STUDENT",
       group: "Kids (5-6)",
-      belt: "WHITE",
+      belt: "GREY",
       stripes: 2,
       promotedAt: daysAgo(40),
       joinedAt: daysAgo(95),
       subscriptionStatus: "ACTIVE",
+      dob: "2020-05-12",
+      parentName: "Carlos Martinez",
+      parentPhone: "(530) 554-1298",
+      parentEmail: "carlos.m@demo.test",
+      memberType: "EXISTING",
     },
     {
       id: elenaId,
@@ -187,11 +275,16 @@ function getStore(): GlobalDataStore {
       name: "Elena V.",
       role: "STUDENT",
       group: "Juniors (7-12)",
-      belt: "BLUE",
+      belt: "GREEN",
       stripes: 3,
       promotedAt: daysAgo(60),
       joinedAt: daysAgo(350),
       subscriptionStatus: "ACTIVE",
+      dob: "2010-11-02",
+      parentName: "Maria Vasquez",
+      parentPhone: "(530) 908-3351",
+      parentEmail: "maria.v@demo.test",
+      memberType: "EXISTING",
     },
   ];
 
@@ -212,14 +305,7 @@ function getStore(): GlobalDataStore {
     { id: uid(), userId: elenaId, name: "NorCal State Championship", date: daysAgo(20), division: "Junior / Middle", result: "Gold" },
   ];
 
-  const initialGallery: GalleryRow[] = [
-    { id: uid(), src: "/photos/placeholder-1.svg", caption: "Drill night — replace with a real photo", sortOrder: 0, createdAt: nowIso() },
-    { id: uid(), src: "/photos/placeholder-2.svg", caption: "Open mat — replace with a real photo", sortOrder: 1, createdAt: nowIso() },
-    { id: uid(), src: "/photos/placeholder-3.svg", caption: "Belt promotion — replace with a real photo", sortOrder: 2, createdAt: nowIso() },
-    { id: uid(), src: "/photos/placeholder-4.svg", caption: "Competition team — replace with a real photo", sortOrder: 3, createdAt: nowIso() },
-    { id: uid(), src: "/photos/placeholder-5.svg", caption: "Kids of the dojo — replace with a real photo", sortOrder: 4, createdAt: nowIso() },
-    { id: uid(), src: "/photos/placeholder-6.svg", caption: "Community — replace with a real photo", sortOrder: 5, createdAt: nowIso() },
-  ];
+  const initialGallery: GalleryRow[] = getDefaultGallery();
 
   const initialSettings: Record<string, string> = {
     videoUrl: "https://www.youtube.com/embed/2fbLKPvmDws",
@@ -288,22 +374,52 @@ const store = getStore();
 
 // ---------- Users ----------
 export const Users = {
-  byEmail: (email: string) => store.users.find((u) => u.email.toLowerCase() === email.toLowerCase()),
+  byEmail: (email: string) =>
+    store.users.find(
+      (u) =>
+        u.email.toLowerCase() === email.toLowerCase() ||
+        (u.parentEmail && u.parentEmail.toLowerCase() === email.toLowerCase())
+    ),
   byId: (id: string) => store.users.find((u) => u.id === id),
-  create(data: { email: string; name: string; passwordHash: string; phone?: string; group?: string; role?: string }) {
+  create(data: {
+    email: string;
+    name: string;
+    passwordHash: string;
+    phone?: string;
+    group?: string;
+    role?: string;
+    belt?: string;
+    stripes?: number;
+    joinedAt?: string;
+    subscriptionStatus?: string;
+    dob?: string;
+    parentName?: string;
+    parentPhone?: string;
+    parentEmail?: string;
+    medicalNotes?: string;
+    familyId?: string;
+    memberType?: "NEW" | "EXISTING";
+  }) {
     const row: UserRow = {
       id: uid(),
       email: data.email,
-      phone: data.phone ?? "",
+      phone: data.phone || data.parentPhone || "",
       name: data.name,
       passwordHash: data.passwordHash,
       role: data.role ?? "STUDENT",
       group: data.group ?? "Adults (13+)",
-      belt: "WHITE",
-      stripes: 0,
+      belt: data.belt ?? "WHITE",
+      stripes: data.stripes ?? 0,
       promotedAt: nowIso(),
-      joinedAt: nowIso(),
-      subscriptionStatus: "TRIAL",
+      joinedAt: data.joinedAt || nowIso(),
+      subscriptionStatus: data.subscriptionStatus ?? (data.memberType === "EXISTING" ? "ACTIVE" : "TRIAL"),
+      dob: data.dob,
+      parentName: data.parentName,
+      parentPhone: data.parentPhone,
+      parentEmail: data.parentEmail,
+      medicalNotes: data.medicalNotes,
+      familyId: data.familyId,
+      memberType: data.memberType ?? "NEW",
     };
     store.users.push(row);
     return row;
@@ -324,7 +440,23 @@ export const Users = {
       user.group = group;
     }
   },
-  updateDetails(id: string, data: { name?: string; email?: string; phone?: string; group?: string; belt?: string; stripes?: number; subscriptionStatus?: string }) {
+  updateDetails(
+    id: string,
+    data: {
+      name?: string;
+      email?: string;
+      phone?: string;
+      group?: string;
+      belt?: string;
+      stripes?: number;
+      subscriptionStatus?: string;
+      dob?: string;
+      parentName?: string;
+      parentPhone?: string;
+      parentEmail?: string;
+      medicalNotes?: string;
+    }
+  ) {
     const user = store.users.find((u) => u.id === id);
     if (user) {
       if (data.name !== undefined) user.name = data.name;
@@ -334,6 +466,11 @@ export const Users = {
       if (data.belt !== undefined) user.belt = data.belt;
       if (data.stripes !== undefined) user.stripes = data.stripes;
       if (data.subscriptionStatus !== undefined) user.subscriptionStatus = data.subscriptionStatus;
+      if (data.dob !== undefined) user.dob = data.dob;
+      if (data.parentName !== undefined) user.parentName = data.parentName;
+      if (data.parentPhone !== undefined) user.parentPhone = data.parentPhone;
+      if (data.parentEmail !== undefined) user.parentEmail = data.parentEmail;
+      if (data.medicalNotes !== undefined) user.medicalNotes = data.medicalNotes;
     }
   },
   countStudents: () => store.users.filter((u) => u.role === "STUDENT").length,

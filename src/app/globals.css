@@ -3,8 +3,9 @@
 @tailwind utilities;
 
 :root {
-  --ink: #131624;
-  --mat: #F1F3EF;
+  --ink: #0C1017;
+  --mat: #F3F4F0;
+  --crimson: #9D0000;
 }
 
 html { scroll-behavior: smooth; }
@@ -14,19 +15,48 @@ html { scroll-behavior: smooth; }
 }
 
 body {
-  @apply bg-mat text-ink font-body antialiased;
+  @apply bg-mat text-ink font-body antialiased selection:bg-crimson selection:text-white;
 }
 
-/* Signature: the belt line — white → blue → purple → brown → black */
+/* Signature: the belt progression line — white → blue → purple → brown → black + crimson bar */
 .belt-line {
-  height: 6px;
+  height: 5px;
   background: linear-gradient(
     90deg,
-    #FAFAF7 0%, #FAFAF7 19%,
-    #2E5EAA 20%, #2E5EAA 39%,
-    #6B4FA0 40%, #6B4FA0 59%,
-    #7A4A2B 60%, #7A4A2B 79%,
-    #17130F 80%, #17130F 100%
+    #FAFAF7 0%, #FAFAF7 18%,
+    #2E5EAA 18%, #2E5EAA 38%,
+    #6B4FA0 38%, #6B4FA0 58%,
+    #7A4A2B 58%, #7A4A2B 78%,
+    #17130F 78%, #17130F 91%,
+    #FAFAF7 91%, #FAFAF7 92%,
+    #9D0000 92%, #9D0000 98%,
+    #FAFAF7 98%, #FAFAF7 99%,
+    #17130F 99%, #17130F 100%
+  );
+}
+
+/* Authentic BJJ Black Belt bar divider — inspired by the "I" in the Imagine logo */
+.black-belt-bar {
+  height: 8px;
+  background: linear-gradient(
+    90deg,
+    #0C1017 0%, #0C1017 14%,
+    #FAFAF7 14%, #FAFAF7 17%,
+    #9D0000 17%, #9D0000 38%,
+    #FAFAF7 38%, #FAFAF7 41%,
+    #0C1017 41%, #0C1017 100%
+  );
+}
+
+.black-belt-bar-light {
+  height: 8px;
+  background: linear-gradient(
+    90deg,
+    #252B3B 0%, #252B3B 14%,
+    #FAFAF7 14%, #FAFAF7 17%,
+    #C8102E 17%, #C8102E 38%,
+    #FAFAF7 38%, #FAFAF7 41%,
+    #252B3B 41%, #252B3B 100%
   );
 }
 
@@ -34,8 +64,8 @@ body {
 .gi-weave {
   background-color: var(--ink);
   background-image:
-    radial-gradient(rgba(241, 243, 239, 0.05) 1px, transparent 1px),
-    radial-gradient(rgba(241, 243, 239, 0.04) 1px, transparent 1px);
+    radial-gradient(rgba(243, 244, 240, 0.055) 1px, transparent 1px),
+    radial-gradient(rgba(243, 244, 240, 0.035) 1px, transparent 1px);
   background-size: 14px 14px;
   background-position: 0 0, 7px 7px;
 }
@@ -62,14 +92,18 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 }
 
 .btn {
-  @apply inline-block bg-flow text-mat font-mono uppercase tracking-widest text-sm px-6 py-3 hover:bg-ink transition-colors;
+  @apply inline-flex items-center justify-center gap-2 bg-crimson text-white font-mono uppercase tracking-widest text-xs sm:text-sm font-bold px-6 py-3.5 hover:bg-ink transition-all duration-200 shadow-sm;
+}
+.btn-blue {
+  @apply inline-flex items-center justify-center gap-2 bg-flow text-white font-mono uppercase tracking-widest text-xs sm:text-sm font-bold px-6 py-3.5 hover:bg-ink transition-all duration-200 shadow-sm;
 }
 .btn-ghost {
-  @apply inline-block border border-ink text-ink font-mono uppercase tracking-widest text-sm px-6 py-3 hover:bg-ink hover:text-mat transition-colors;
+  @apply inline-flex items-center justify-center gap-2 border border-ink text-ink font-mono uppercase tracking-widest text-xs sm:text-sm font-bold px-6 py-3.5 hover:bg-ink hover:text-mat transition-all duration-200;
 }
 .field {
-  @apply w-full border border-line bg-white px-3 py-2 text-sm;
+  @apply w-full border border-line bg-white px-3.5 py-2.5 text-sm focus:border-flow transition-colors;
 }
 .label {
-  @apply block font-mono text-xs uppercase tracking-widest mb-1 text-ink/70;
+  @apply block font-mono text-xs uppercase tracking-widest mb-1.5 text-ink/70;
 }
+

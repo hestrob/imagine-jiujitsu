@@ -2,7 +2,7 @@ import { BELT_COLORS, BELT_LABELS } from "@/lib/belts";
 
 export function BeltBadge({ belt, stripes }: { belt: string; stripes: number }) {
   const color = BELT_COLORS[belt] ?? "#FAFAF7";
-  const light = belt === "WHITE";
+  const light = belt === "WHITE" || belt === "YELLOW" || belt === "GREY";
   return (
     <span className="inline-flex items-center gap-2">
       <span

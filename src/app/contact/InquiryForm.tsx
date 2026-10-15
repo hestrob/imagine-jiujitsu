@@ -17,16 +17,6 @@ export function InquiryForm() {
         <p className="text-ink/70">
           Your request for a free class has been submitted. We will be in touch shortly!
         </p>
-        {state.mailtoUrl && (
-          <div className="pt-2">
-            <a
-              href={state.mailtoUrl}
-              className="btn inline-block !py-2.5 !px-5 text-sm"
-            >
-              Click here to send email to imagineawebsite@gmail.com
-            </a>
-          </div>
-        )}
       </div>
     );
   }

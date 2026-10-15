@@ -119,12 +119,18 @@ const galleryCount = db.prepare("SELECT COUNT(*) c FROM gallery").get().c;
 if (galleryCount === 0) {
   const insertImg = db.prepare("INSERT INTO gallery (id,src,caption,sortOrder,createdAt) VALUES (?,?,?,?,?)");
   const photos = [
-    ["/photos/placeholder-1.svg", "Drill night — replace with a real photo"],
-    ["/photos/placeholder-2.svg", "Open mat — replace with a real photo"],
-    ["/photos/placeholder-3.svg", "Belt promotion — replace with a real photo"],
-    ["/photos/placeholder-4.svg", "Competition team — replace with a real photo"],
-    ["/photos/placeholder-5.svg", "Kids of the dojo — replace with a real photo"],
-    ["/photos/placeholder-6.svg", "Community — replace with a real photo"],
+    ["/photos/team-gi.jpg", "Imagine Jiu Jitsu Academy — Adult Gi Team & Lineage Wall"],
+    ["/photos/team-nogi.jpg", "No-Gi Night — Full Mat Team in Woodland, CA"],
+    ["/photos/coach-coaching.jpg", "Coach Sean — Technical Detail & Back Control"],
+    ["/photos/nogi-takedown.jpg", "Live Rounds — No-Gi Wrestling & Takedown Entries"],
+    ["/photos/kids-lineup.jpg", "Youth & Juniors Gi — Discipline, Focus & Fun"],
+    ["/photos/kids-rolling.jpg", "Juniors (7–12) — Guard Work & Live Grappling"],
+    ["/photos/mat-respect.jpg", "Ego-Free Culture — Every Round Starts With a Handshake"],
+    ["/photos/nogi-pressure.jpg", "Adult No-Gi — Top Pressure & Guard Retention"],
+    ["/photos/kids-coaching.jpg", "Coach Sean Guiding the Next Generation"],
+    ["/photos/juniors-guard.jpg", "Juniors Gi — Closed Guard Fundamentals"],
+    ["/photos/nogi-sub.jpg", "Submission Chains & Positional Control"],
+    ["/photos/class-circle.jpg", "Community on the Mat — End of Class Lineup"],
   ];
   photos.forEach(([src, caption], i) => insertImg.run(randomUUID(), src, caption, i, now()));
 }

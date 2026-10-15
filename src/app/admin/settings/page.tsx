@@ -1,10 +1,12 @@
 import { getSettings } from "@/lib/settings";
+import { getTwilioStatus } from "@/lib/twilio";
 import { saveSettings } from "@/app/actions";
 
 export const metadata = { title: "Settings — Admin" };
 
 export default async function SettingsPage({ searchParams }: { searchParams: { saved?: string } }) {
   const s = await getSettings();
+  const twilio = await getTwilioStatus();
   return (
     <div className="max-w-3xl">
       <h1 className="display-tight text-3xl">Site settings</h1>
@@ -13,6 +15,34 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
         <p className="mt-3 border border-flow bg-white px-4 py-2 font-mono text-xs uppercase tracking-widest text-flow">Saved</p>
       )}
       <form action={saveSettings} className="mt-6 space-y-6">
+        <section className="border border-line bg-white p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="eyebrow text-ink/50">Twilio SMS Alerts</p>
+            <span
+              className={`font-mono text-[11px] px-2 py-0.5 border ${
+                twilio.connected
+                  ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                  : "border-amber-400 bg-amber-50 text-amber-800"
+              }`}
+            >
+              {twilio.connected
+                ? `Connected (${twilio.accountType || "Active"} · ${twilio.accountSidMasked})`
+                : "Not Connected"}
+            </span>
+          </div>
+          <div>
+            <label className="label" htmlFor="twilioFromPhone">
+              Twilio Sender Phone Number (auto-discovered from your Twilio account if left blank)
+            </label>
+            <input
+              id="twilioFromPhone"
+              name="twilioFromPhone"
+              className="field font-mono text-xs"
+              placeholder="+15304905974"
+              defaultValue={s.twilioFromPhone || twilio.fromPhone || ""}
+            />
+          </div>
+        </section>
         <section className="border border-line bg-white p-4 space-y-3">
           <p className="eyebrow text-ink/50">Video wall</p>
           <div>

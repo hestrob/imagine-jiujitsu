@@ -5,11 +5,44 @@ import { redirect } from "next/navigation";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
-  AttendanceRepo, Broadcasts, Competitions, Gallery, Inquiries, Settings, Users,
+  AttendanceRepo, Broadcasts, Competitions, Gallery, Inquiries, Settings, Users, uid,
 } from "@/lib/db";
 import {
-  createSession, destroySession, hashPassword, requireAdmin, verifyPassword,
+  createSession, currentUser, destroySession, hashPassword, requireAdmin, verifyPassword,
 } from "@/lib/auth";
+import { calculateAge, suggestGroupFromAge } from "@/lib/belts";
+import { provisionWoodlandTrialNumber, sendTwilioBulkSms } from "@/lib/twilio";
+
+export type OnboardStudentPayload = {
+  name: string;
+  dob: string;
+  group: string;
+  memberType: "NEW" | "EXISTING";
+  belt: string;
+  stripes: number;
+  startDate?: string;
+  studentEmail?: string;
+  studentPhone?: string;
+  medicalNotes?: string;
+};
+
+export type OnboardingActionState = {
+  ok?: boolean;
+  error?: string;
+  onboarded?: {
+    id: string;
+    name: string;
+    dob: string;
+    age: number | null;
+    group: string;
+    belt: string;
+    stripes: number;
+    memberType: "NEW" | "EXISTING";
+    parentName?: string;
+    phone: string;
+    email: string;
+  }[];
+};
 
 // ---------- Auth ----------
 
@@ -35,6 +68,158 @@ export async function signUp(_prev: { error?: string } | undefined, formData: Fo
   const user = Users.create({ name, email, passwordHash: hashPassword(password) });
   await createSession(user.id);
   redirect("/portal");
+}
+
+export async function submitOnboarding(
+  _prev: OnboardingActionState | undefined,
+  formData: FormData
+): Promise<OnboardingActionState> {
+  const parentName = String(formData.get("parentName") || "").trim();
+  const parentPhone = String(formData.get("parentPhone") || "").trim();
+  const parentEmail = String(formData.get("parentEmail") || "").toLowerCase().trim();
+  const passwordRaw = String(formData.get("password") || "").trim();
+  const studentsJson = String(formData.get("studentsJson") || "[]");
+
+  let studentsInput: OnboardStudentPayload[] = [];
+  try {
+    studentsInput = JSON.parse(studentsJson);
+  } catch {
+    return { error: "Invalid student form data. Please try again." };
+  }
+
+  if (!Array.isArray(studentsInput) || studentsInput.length === 0) {
+    return { error: "Please add at least one student to onboard." };
+  }
+
+  for (let i = 0; i < studentsInput.length; i++) {
+    const s = studentsInput[i];
+    if (!s.name || !s.name.trim()) {
+      return { error: `Please enter a full name for Student #${i + 1}.` };
+    }
+    if (!s.dob || !s.dob.trim()) {
+      return { error: `Please enter a Date of Birth (DOB) for ${s.name.trim()}.` };
+    }
+  }
+
+  const hasMinor = studentsInput.some((s) => {
+    const age = calculateAge(s.dob);
+    return age !== null && age < 18;
+  });
+
+  if (hasMinor && !parentName) {
+    return { error: "Parent / Guardian full name is required for students under 18." };
+  }
+
+  if (!parentPhone) {
+    return { error: "A primary / parent phone number is required for billing and schedule alerts." };
+  }
+
+  if (!parentEmail) {
+    return { error: "A primary / billing email address is required." };
+  }
+
+  const familyId = studentsInput.length > 1 || parentName ? uid() : undefined;
+  const pwHash = hashPassword(passwordRaw.length >= 6 ? passwordRaw : "osss");
+  const existingRoster = Users.students();
+  const onboardedList: NonNullable<OnboardingActionState["onboarded"]> = [];
+
+  for (const s of studentsInput) {
+    const cleanName = s.name.trim();
+    const age = calculateAge(s.dob);
+    const isMinor = age !== null && age < 18;
+    const assignedGroup = s.group || suggestGroupFromAge(age);
+    const effectiveEmail = (s.studentEmail?.trim() || parentEmail).toLowerCase();
+    const effectivePhone = s.studentPhone?.trim() || parentPhone;
+    const memberType = s.memberType === "EXISTING" ? "EXISTING" : "NEW";
+    const belt = memberType === "EXISTING" ? s.belt || "WHITE" : "WHITE";
+    const stripes = memberType === "EXISTING" ? Math.max(0, Math.min(4, Number(s.stripes || 0))) : 0;
+    const joinedAt =
+      memberType === "EXISTING" && s.startDate
+        ? new Date(s.startDate).toISOString()
+        : new Date().toISOString();
+    const subscriptionStatus = memberType === "EXISTING" ? "ACTIVE" : "TRIAL";
+
+    // Check if an existing student with the same name is already on the roster so we update instead of duplicating
+    const matchByName = existingRoster.find(
+      (u) => u.name.toLowerCase() === cleanName.toLowerCase()
+    );
+
+    if (matchByName) {
+      Users.updateDetails(matchByName.id, {
+        name: cleanName,
+        email: effectiveEmail,
+        phone: effectivePhone,
+        group: assignedGroup,
+        belt,
+        stripes,
+        subscriptionStatus,
+        dob: s.dob,
+        parentName: isMinor || parentName ? parentName : undefined,
+        parentPhone,
+        parentEmail,
+        medicalNotes: s.medicalNotes?.trim() || undefined,
+      });
+      onboardedList.push({
+        id: matchByName.id,
+        name: cleanName,
+        dob: s.dob,
+        age,
+        group: assignedGroup,
+        belt,
+        stripes,
+        memberType,
+        parentName: isMinor || parentName ? parentName : undefined,
+        phone: effectivePhone,
+        email: effectiveEmail,
+      });
+    } else {
+      const created = Users.create({
+        name: cleanName,
+        email: effectiveEmail,
+        phone: effectivePhone,
+        passwordHash: pwHash,
+        group: assignedGroup,
+        belt,
+        stripes,
+        joinedAt,
+        subscriptionStatus,
+        dob: s.dob,
+        parentName: isMinor || parentName ? parentName : undefined,
+        parentPhone,
+        parentEmail,
+        medicalNotes: s.medicalNotes?.trim() || undefined,
+        familyId,
+        memberType,
+      });
+      onboardedList.push({
+        id: created.id,
+        name: created.name,
+        dob: s.dob,
+        age,
+        group: assignedGroup,
+        belt,
+        stripes,
+        memberType,
+        parentName: isMinor || parentName ? parentName : undefined,
+        phone: effectivePhone,
+        email: effectiveEmail,
+      });
+    }
+  }
+
+  // If submitted by a public user (not signed in as Admin), sign them into their student portal session
+  const viewer = await currentUser();
+  if (!viewer && onboardedList.length > 0) {
+    await createSession(onboardedList[0].id);
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/roster");
+  revalidatePath("/admin/broadcast");
+  revalidatePath("/admin/schedule");
+  revalidatePath("/portal");
+
+  return { ok: true, onboarded: onboardedList };
 }
 
 export async function signOut() {
@@ -82,6 +267,19 @@ export async function submitInquiry(_prev: { ok?: boolean; mailtoUrl?: string; e
     }
   }
 
+  // Try sending SMS alert to Coach Sean via Twilio if configured
+  const adminPhone = Settings.all().phone || "(530) 520-3266";
+  if (adminPhone) {
+    try {
+      await sendTwilioBulkSms(
+        [adminPhone],
+        `[Imagine JJ New Inquiry] ${name} (${phone || email}): ${message || "Requested a free trial class."}`
+      );
+    } catch (err) {
+      console.error("Twilio inquiry notification error:", err);
+    }
+  }
+
   const subject = encodeURIComponent(`Free Class Booking Request - ${name}`);
   const body = encodeURIComponent(`Hi Coach Sean,\n\nI would like to book a free class at Imagine Jiu Jitsu.\n\nName: ${name}\nEmail: ${email}\nPhone: ${phone || "N/A"}\nMessage: ${message || "N/A"}\n\nThanks!`);
   const mailtoUrl = `mailto:${targetEmail}?subject=${subject}&body=${body}`;
@@ -97,12 +295,15 @@ export async function saveSettings(formData: FormData) {
     "videoUrl", "address", "phone", "email",
     "facebook", "instagram", "yelp",
     "coachName", "coachBio", "schedule",
+    "twilioFromPhone", "twilioAccountSid", "twilioAuthToken",
   ];
   for (const key of keys) {
     const value = formData.get(key);
-    if (value !== null) Settings.set(key, String(value));
+    if (value !== null) Settings.set(key, String(value).trim());
   }
   revalidatePath("/", "layout");
+  revalidatePath("/admin/broadcast");
+  revalidatePath("/admin/schedule");
   redirect("/admin/settings?saved=1");
 }
 
@@ -206,8 +407,26 @@ export async function updateStudentDetails(formData: FormData) {
   const belt = String(formData.get("belt") || "WHITE");
   const stripes = Math.max(0, Math.min(4, Number(formData.get("stripes") || 0)));
   const subscriptionStatus = String(formData.get("subscriptionStatus") || "TRIAL");
+  const dob = String(formData.get("dob") || "").trim();
+  const parentName = String(formData.get("parentName") || "").trim();
+  const parentPhone = String(formData.get("parentPhone") || "").trim();
+  const parentEmail = String(formData.get("parentEmail") || "").toLowerCase().trim();
+  const medicalNotes = String(formData.get("medicalNotes") || "").trim();
 
-  Users.updateDetails(id, { name, email, phone, group, belt, stripes, subscriptionStatus });
+  Users.updateDetails(id, {
+    name,
+    email,
+    phone: phone || parentPhone,
+    group,
+    belt,
+    stripes,
+    subscriptionStatus,
+    dob: dob || undefined,
+    parentName: parentName || undefined,
+    parentPhone: parentPhone || undefined,
+    parentEmail: parentEmail || undefined,
+    medicalNotes: medicalNotes || undefined,
+  });
   revalidatePath("/admin/roster");
   revalidatePath("/admin/broadcast");
   revalidatePath("/admin/schedule");
@@ -224,29 +443,52 @@ export async function addStudentMember(formData: FormData) {
   const belt = String(formData.get("belt") || "WHITE");
   const stripes = Math.max(0, Math.min(4, Number(formData.get("stripes") || 0)));
   const subscriptionStatus = String(formData.get("subscriptionStatus") || "ACTIVE");
+  const dob = String(formData.get("dob") || "").trim();
+  const parentName = String(formData.get("parentName") || "").trim();
+  const parentPhone = String(formData.get("parentPhone") || "").trim();
+  const parentEmail = String(formData.get("parentEmail") || "").toLowerCase().trim();
+  const medicalNotes = String(formData.get("medicalNotes") || "").trim();
+  const memberType = String(formData.get("memberType") || "NEW") === "EXISTING" ? "EXISTING" : "NEW";
 
-  if (!name || !email) return { error: "Name and email are required." };
+  if (!name || !(email || parentEmail)) return { error: "Name and email are required." };
 
   Users.create({
     name,
-    email,
-    phone,
+    email: email || parentEmail,
+    phone: phone || parentPhone,
     group,
+    belt,
+    stripes,
+    subscriptionStatus,
+    dob: dob || undefined,
+    parentName: parentName || undefined,
+    parentPhone: parentPhone || phone || undefined,
+    parentEmail: parentEmail || email || undefined,
+    medicalNotes: medicalNotes || undefined,
+    memberType,
     passwordHash: hashPassword("osss"),
   });
 
-  const student = Users.byEmail(email);
-  if (student) {
-    Users.updateRank(student.id, belt, stripes, subscriptionStatus);
-  }
-
+  revalidatePath("/admin");
   revalidatePath("/admin/roster");
   revalidatePath("/admin/broadcast");
 }
 
 // ---------- Admin: broadcasts & alerts ----------
 
-export async function sendBroadcast(_prev: { ok?: boolean; error?: string; count?: number } | undefined, formData: FormData) {
+export async function sendBroadcast(
+  _prev:
+    | {
+        ok?: boolean;
+        error?: string;
+        count?: number;
+        smsSent?: number;
+        smsFailed?: number;
+        smsWarning?: string;
+      }
+    | undefined,
+  formData: FormData
+) {
   await requireAdmin();
   const targetGroup = String(formData.get("targetGroup") || "ALL");
   const channel = String(formData.get("channel") || "ALL");
@@ -297,30 +539,17 @@ export async function sendBroadcast(_prev: { ok?: boolean; error?: string; count
   }
 
   // 2. Send via Twilio (SMS) if configured
-  if ((channel === "SMS" || channel === "ALL") && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
-    const phones = recipients.map((r) => r.phone).filter(Boolean);
-    const sid = process.env.TWILIO_ACCOUNT_SID;
-    const auth = Buffer.from(`${sid}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64");
-    for (const phone of phones) {
-      try {
-        const cleanPhone = phone.replace(/[^0-9+]/g, "");
-        if (!cleanPhone) continue;
-        const bodyParams = new URLSearchParams({
-          To: cleanPhone.startsWith("+") ? cleanPhone : `+1${cleanPhone}`,
-          From: process.env.TWILIO_FROM_PHONE || "",
-          Body: `[Imagine Jiu Jitsu] ${title}: ${message}`,
-        });
-        await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
-          method: "POST",
-          headers: {
-            Authorization: `Basic ${auth}`,
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: bodyParams.toString(),
-        });
-      } catch (err) {
-        console.error("Twilio SMS send error:", err);
-      }
+  let smsSent = 0;
+  let smsFailed = 0;
+  let smsWarning: string | undefined;
+
+  if (channel === "SMS" || channel === "ALL") {
+    const phones = recipients.map((r) => r.phone || r.parentPhone || "").filter(Boolean);
+    const smsRes = await sendTwilioBulkSms(phones, `[Imagine Jiu Jitsu] ${title}: ${message}`);
+    smsSent = smsRes.sent;
+    smsFailed = smsRes.failed;
+    if (smsRes.errors.length > 0) {
+      smsWarning = smsRes.errors[0];
     }
   }
 
@@ -338,7 +567,46 @@ export async function sendBroadcast(_prev: { ok?: boolean; error?: string; count
   revalidatePath("/admin/broadcast");
   revalidatePath("/admin/schedule");
   revalidatePath("/portal");
-  return { ok: true, count: recipientCount };
+  return { ok: true, count: recipientCount, smsSent, smsFailed, smsWarning };
+}
+
+export async function claimTwilioNumberAction() {
+  await requireAdmin();
+  const res = await provisionWoodlandTrialNumber();
+  revalidatePath("/admin/broadcast");
+  revalidatePath("/admin/settings");
+  return res;
+}
+
+export async function sendTestSmsAction(
+  _prev: { ok?: boolean; message?: string; error?: string } | undefined,
+  formData: FormData
+) {
+  await requireAdmin();
+  const toPhone = String(formData.get("toPhone") || "").trim();
+  const testBody =
+    String(formData.get("testBody") || "").trim() ||
+    "🥋 Test SMS from Imagine Jiu Jitsu Woodland! Your Twilio SMS alerts are live.";
+
+  if (!toPhone) {
+    return { error: "Please enter a recipient phone number." };
+  }
+
+  const res = await sendTwilioBulkSms([toPhone], testBody);
+  revalidatePath("/admin/broadcast");
+  revalidatePath("/admin/settings");
+
+  if (res.sent > 0) {
+    return {
+      ok: true,
+      message: `Test SMS sent to ${toPhone} from ${res.fromPhone}!`,
+    };
+  }
+  return {
+    error:
+      res.errors[0] ||
+      "Failed to send test SMS. Make sure you have claimed your free trial phone number and verified the recipient phone number in Twilio.",
+  };
 }
 
 // ---------- Admin: schedule & group members console ----------
@@ -354,6 +622,7 @@ export async function saveScheduleConsole(
   Settings.set("schedule", scheduleRaw);
 
   let notifiedCount = 0;
+  let smsSummary = "";
   if (notifyMembers) {
     const targetGroup = String(formData.get("targetGroup") || "ALL");
     const channel = String(formData.get("channel") || "ALL");
@@ -399,30 +668,11 @@ export async function saveScheduleConsole(
       }
 
       // Send via Twilio (SMS) if configured
-      if ((channel === "SMS" || channel === "ALL") && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
-        const phones = recipients.map((r) => r.phone).filter(Boolean);
-        const sid = process.env.TWILIO_ACCOUNT_SID;
-        const auth = Buffer.from(`${sid}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64");
-        for (const phone of phones) {
-          try {
-            const cleanPhone = phone.replace(/[^0-9+]/g, "");
-            if (!cleanPhone) continue;
-            const bodyParams = new URLSearchParams({
-              To: cleanPhone.startsWith("+") ? cleanPhone : `+1${cleanPhone}`,
-              From: process.env.TWILIO_FROM_PHONE || "",
-              Body: `[Imagine Jiu Jitsu] ${title}: ${message}`,
-            });
-            await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
-              method: "POST",
-              headers: {
-                Authorization: `Basic ${auth}`,
-                "Content-Type": "application/x-www-form-urlencoded",
-              },
-              body: bodyParams.toString(),
-            });
-          } catch (err) {
-            console.error("Twilio SMS schedule alert error:", err);
-          }
+      if (channel === "SMS" || channel === "ALL") {
+        const phones = recipients.map((r) => r.phone || r.parentPhone || "").filter(Boolean);
+        const smsRes = await sendTwilioBulkSms(phones, `[Imagine Jiu Jitsu] ${title}: ${message}`);
+        if (smsRes.sent > 0) {
+          smsSummary = ` (${smsRes.sent} Twilio SMS delivered)`;
         }
       }
 
@@ -449,7 +699,7 @@ export async function saveScheduleConsole(
     ok: true,
     notifiedCount,
     message: notifyMembers
-      ? `Schedule updated and notification sent to ${notifiedCount} member${notifiedCount === 1 ? "" : "s"} in the app!`
+      ? `Schedule updated and notification sent to ${notifiedCount} member${notifiedCount === 1 ? "" : "s"} in the app${smsSummary}!`
       : "Schedule updated across the site and member portal!",
   };
 }

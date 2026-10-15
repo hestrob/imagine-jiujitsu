@@ -14,6 +14,13 @@ export default async function RosterPage() {
     stripes: s.stripes,
     subscriptionStatus: s.subscriptionStatus,
     classCount: AttendanceRepo.countForUser(s.id),
+    dob: s.dob || "",
+    parentName: s.parentName || "",
+    parentPhone: s.parentPhone || "",
+    parentEmail: s.parentEmail || "",
+    medicalNotes: s.medicalNotes || "",
+    memberType: s.memberType || "EXISTING",
+    familyId: s.familyId || "",
   }));
 
   return <RosterView students={students} />;
